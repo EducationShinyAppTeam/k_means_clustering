@@ -1,26 +1,37 @@
-# Load Packages ----
+library(shiny)
+library(fields)
+library(tidyverse)
 library(shiny)
 library(shinydashboard)
 library(shinyBS)
 library(shinyWidgets)
 library(boastUtils)
+library(dplyr)
+#library(Stat2Data)
+library(tidyselect)
 
-# Load additional dependencies and setup functions
-# source("global.R")
+
+data(FruitFlies2)
+data(iris) # ciation for iris
+#load file
+Kiterfunction <- readRDS("Kiterfunction.rds")
+
+
+
 
 # Define UI for App ----
 ui <- list(
   ## Create the app page ----
   dashboardPage(
-    skin = "blue",
+    skin = "red",
     ### Create the app header ----
     dashboardHeader(
-      title = "App Template", # You may use a shortened form of the title here
+      title = "k_means Clustering", # You may use a shortened form of the title here
       titleWidth = 250,
       tags$li(class = "dropdown", actionLink("info", icon("info"))),
       tags$li(
         class = "dropdown",
-        boastUtils::surveyLink(name = "App_Template")
+        boastUtils::surveyLink(name = "k_means Clustering")
       ),
       tags$li(
         class = "dropdown",
@@ -34,12 +45,9 @@ ui <- list(
       width = 250,
       sidebarMenu(
         id = "pages",
-        menuItem("Overview", tabName = "overview", icon = icon("tachometer-alt")),
-        menuItem("Prerequisites", tabName = "prerequisites", icon = icon("book")),
+        menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
+        menuItem("Examples", tabName = "example", icon = icon("book")),
         menuItem("Explore", tabName = "explore", icon = icon("wpexplorer")),
-        menuItem("Challenge", tabName = "challenge", icon = icon("cogs")),
-        menuItem("Game", tabName = "game", icon = icon("gamepad")),
-        menuItem("Wizard", tabName = "wizard", icon = icon("hat-wizard")),
         menuItem("References", tabName = "references", icon = icon("leanpub"))
       ),
       tags$div(
@@ -54,40 +62,31 @@ ui <- list(
         tabItem(
           tabName = "overview",
           withMathJax(),
-          h1("Sample Application for BOAST Apps"), # This should be the full name.
-          p("This is a sample Shiny application for BOAST. Remember, this page
-            will act like the front page (home page) of your app. Thus you will
-            want to have this page catch attention and describe (in general terms)
-            what the user can do in the rest of the app."),
-          h2("Instructions"),
-          p("This information will change depending on what you want to do."),
-          tags$ol(
-            tags$li("Review any prerequiste ideas using the Prerequistes tab."),
-            tags$li("Explore the Exploration Tab."),
-            tags$li("Challenge yourself."),
-            tags$li("Play the game to test how far you've come.")
-          ),
-          ##### Go Button--location will depend on your goals
+          h1("Clustering App"), # This should be the full name.
+          h2("M I S S I O N"),
+          p("Play now or load your data in the form below. Click the plot multiple times to identify new points and then click the 'Ready!' button to
+      visualize your score. Try to minimize the score with one, two and three points.Try to do it with more than three points. What is happening when increasing
+      the number of points?"),
           div(
             style = "text-align: center;",
             bsButton(
-              inputId = "go1",
+              inputId = "goExplore",
               label = "GO!",
               size = "large",
               icon = icon("bolt"),
               style = "default"
             )
           ),
-          ##### Create two lines of space
           br(),
           br(),
           h2("Acknowledgements"),
           p(
-            "This version of the app was developed and coded by Neil J.
-            Hatfield  and Robert P. Carey, III.",
+            "The orginial version of the app was developed and coded by Jacopo
+            Di Iorio. This version of the app was modified and coded by Hongyi Xia",
             br(),
-            "We would like to extend a special thanks to the Shiny Program
-            Students.",
+            "I would like to acknowledge and appreciate Professor Hatfield, 
+            Professor Pearl, and Professor Jacopo for their guidance and 
+            support.",
             br(),
             br(),
             "Cite this app as:",
@@ -95,109 +94,97 @@ ui <- list(
             citeApp(),
             br(),
             br(),
-            div(class = "updated", "Last Update: 5/19/2022 by NJH.")
+            div(class = "updated", "Last Update: 6/13/2022 by Hongyi Xia.")
           )
         ),
-        #### Set up the Prerequisites Page ----
-        tabItem(
-          tabName = "prerequisites",
-          withMathJax(),
-          h2("Prerequisites"),
-          p("In order to get the most out of this app, please review the
-            following:"),
-          tags$ul(
-            tags$li("Pre-req 1--Technical/Conceptual Prerequisites are ideas that
-                    users need to have in order to engage with your app fully."),
-            tags$li("Pre-req 2--Contextual Prerequisites refer to any information
-                    about a context in your app that will enrich a user's
-                    understandings."),
-            tags$li("Pre-req 3"),
-            tags$li("Pre-req 4")
+      
+      ### set up example page
+      tabItem(
+        tabName = "example",
+        withMathJax(),
+        h2("Illustrative example of K-means with 3 centroids"),
+        p("Check out the siders with a play button to see iterative changes of cluster run by K-mean
+          Algorithm. An stacked barplot is accompanied to demonstrate the changes of total withiness 
+          as iterations progress."),
+        fluidRow(
+          column(
+            width = 4,
+            offset = 0,
+            wellPanel(
+              sliderInput(
+                inputId = "Exiter", 
+                "Animation:", 
+                label = "current iteration",  
+                value = 0.5,  
+                min = 0.5,
+                max = 10,
+                step = 0.5,
+                animate = animationOptions(interval = 1500)
+              )
+            ),
+            p("Notice: The color of the data points change at the background based on the
+              distance to the centroid they are cloest to. For example, the green data points
+              have the closest distance to the green centroid, and that is why they have colored
+              in green. After the data points changes color, the position of centroids change
+              as well. The new centroid position will take on the mean x-coordinates and mean
+              y-coordinates of data points that the centroid has the same color with. For example, 
+              the new position of green centroid will move to the center of cluster of data points
+              colored in green. Then, a new round of coloring of data points start over again. These
+              iterative step carry on until there is no more change in the coloring of data points and 
+              position of the centroids")
           ),
-          p("Notice the use of an unordered list; users can move through the
-            list any way they wish."),
-          box(
-            title = strong("Null Hypothesis Significance Tests (NHSTs)"),
-            status = "primary",
-            collapsible = TRUE,
-            collapsed = TRUE,
-            width = '100%',
-            "In the Confirmatory Data Analysis tradition, null hypothesis
-            significance tests serve as a critical tool to confirm that a
-            particular theoretical model describes our data and to make a
-            generalization from our sample to the broader population
-            (i.e., make an inference). The null hypothesis often reflects the
-            simpler of two models (e.g., 'no statistical difference',
-            'there is an additive difference of 1', etc.) that we will use to
-            build a sampling distribution for our chosen estimator. These
-            methods let us test whether our sample data are consistent with this
-            simple model (null hypothesis)."
-          ),
-          box(
-            title = strong(tags$em("p"), "-values"),
-            status = "primary",
-            collapsible = TRUE,
-            collapsed = FALSE,
-            width = '100%',
-            "The probability that our selected estimator takes on a value at
-            least as extreme as what we observed given our null hypothesis. If
-            we were to carry out our study infinitely many times and the null
-            hypothesis accurately modeled what we're studying, then we would
-            expect for our estimator to produce a value at least as extreme as
-            what we have seen 100*(p-value)% of the time. The larger the
-            p-value, the more often we would expect our estimator to take on a
-            value at least as extreme as what we've seen; the smaller, the less
-            often."
+          column(
+            width = 8,
+            offset = 0,
+            br(),
+            plotOutput(outputId = "Exdotplot"),
+            plotOutput(outputId = "Exbarplot")
           )
-        ),
-        #### Note: you must have at least one of the following pages. You might
-        #### have more than one type and/or more than one of the same type. This
-        #### will be up to you and the goals for your app.
+        )
+      ),
+        
         #### Set up an Explore Page ----
-        tabItem(
-          tabName = "explore",
-          withMathJax(),
-          h2("Explore the Concept"),
-          p("This page should include something for the user to do, the more
+        ### Explore Page ----
+      tabItem(
+        tabName = "explore",
+        withMathJax(),
+        h2("Explore Data Collections"),
+        p("This page should include something for the user to do, the more
             active and engaging, the better. The purpose of this page is to help
             the user build a productive understanding of the concept your app
             is dedicated to."),
-          p("Common elements include graphs, sliders, buttons, etc."),
-          p("The following comes from the NHST Caveats App:"),
-        ),
-        #### Set up a Challenge Page ----
-        tabItem(
-          tabName = "challenge",
-          withMathJax(),
-          h2("Challenge Yourself"),
-          p("The general intent of a Challenge page is to have the user take
-            what they learned in an Exploration and apply that knowledge in new
-            contexts/situations. In essence, to have them challenge their
-            understanding by testing themselves."),
-          p("What this page looks like will be up to you. Something you might
-            consider is to re-create the tools of the Exploration page and then
-            a list of questions for the user to then answer.")
-        ),
-        #### Set up a Game Page ----
-        tabItem(
-          tabName = "game",
-          withMathJax(),
-          h2("Practice/Test Yourself with [Type of Game]"),
-          p("On this type of page, you'll set up a game for the user to play.
-            Game types include Tic-Tac-Toe, Matching, and a version Hangman to
-            name a few. If you have ideas for new game type, please let us know.")
-        ),
-        #### Set up a Wizard Page ----
-        tabItem(
-          tabName = "wizard",
-          withMathJax(),
-          h2("Wizard"),
-          p("This page will have a series of inputs and questions for the user to
-            answer/work through in order to have the app create something. These
-            types of Activity pages are currently rare as we try to avoid
-            creating 'calculators' in the BOAST project.")
-        ),
-        #### Set up the References Page ----
+        fluidRow(
+          column(
+            width = 4,
+            offset = 0,
+            wellPanel(
+              selectInput(
+                inputId = "selectData",
+                label = "Choose a data collection",
+                choices = c(
+                  "iris" = "iris",
+                  "Blood" = "Blood1",
+                  "Fruit Flies" = "FruitFlies2"
+                ),
+                selected = "iris"
+              ),
+              actionButton("ready","Ready!"),
+              actionButton("reset","Reset!"),
+              tableOutput("checkout")
+            )
+          ),
+          column(
+            width = 8,
+            offset = 0,
+            uiOutput(outputId = "dataDescription"),
+            br(),
+            plotOutput(outputId = "plot2",click = "plot_click"),
+            plotOutput(outputId = "plotscatter",click = "plot_click")
+          )
+        )
+      ),
+        
+        ### References Page ----
         tabItem(
           tabName = "references",
           withMathJax(),
@@ -206,9 +193,47 @@ ui <- list(
             references for your app."),
           p(
             class = "hangingindent",
-            "Bailey, E. (2015). shinyBS: Twitter bootstrap components for shiny.
-            (v0.61). [R package]. Available from
+            "Bailey, E. (2022). shinyBS: Twitter bootstrap components for shiny.
+            (v 0.61.1). [R package]. Available from
             https://CRAN.R-project.org/package=shinyBS"
+          ),
+          p(
+            class = "hangingindent",
+            "Carey, R. and Hatfield, N. J. (2022). boastUtils: BOAST utlities.
+            (v 0.1.12.3). [R package]. Available from
+            https://github.com/EducationShinyAppTeam/boastUtils"
+          ),
+          p(
+            class = "hangingindent",
+            "Change, W., and Borges Ribeiro, B. (2021). shinydashboard: Create 
+            dashboards with 'shiny'. (v 0.7.2) [R package]. Available from
+            https://CRAN.R-project.org/package=shinydashboard"
+          ),
+          p(
+            class = "hangingindent",
+            "Chang, W., Cheng J., Allaire, J., Sievert, C., Schloerke, B., Xie, Y.,
+            Allen, J., McPherson, J., Dipert, A., and Borges, B. (2021). shiny:
+            Web application framework for R. (v 1.7.1). [R package]. Available
+            from https://CRAN.R-project.org/package=shiny"
+          ),
+          p(
+            class = "hangingindent",
+            "Hadley, W., RStudio (2021). tidyverse: Easily Install and Load the 
+            'Tidyverse'. (v 1.3.1) [R package]. Available from
+             https://CRAN.R-project.org/package=tidyverse"
+          ),
+          p(
+            class = "hangingindent",
+            "Perrier, V., Meyer, F., and Granjon, D. (2022). shinyWidgets: Custom
+            inputs widgets for shiny. (v 0.7.0). [R package]. Available from
+            https://CRAN.R-project.org/package=shinyWidgets"
+          ),
+          p(
+            class = "hangingindent",
+            "Nychka, D., Furrer, R., Paige, J., Sain, S., Gerber, F., Iverson, M.,
+            and University Corporation for Atmospheric Research (2021). 
+            fields: Tools for Spatial Data. (v 13.0.0). [R package]. Available from
+            https://CRAN.R-project.org/package=fields"
           ),
           br(),
           br(),
@@ -220,23 +245,256 @@ ui <- list(
   )
 )
 
-# Define server logic ----
-server <- function(input, output, session) {
 
-  ## Set up Info button ----
+
+server <- function(input, output, session) {
+  
+ 
+  
+  ## Set Buttons
   observeEvent(
-    eventExpr = input$info,
+    eventExpr = input$goExplore,
     handlerExpr = {
-      sendSweetAlert(
+      updateTabItems(
         session = session,
-        type = "info",
-        title = "Information",
-        text = "This App Template will help you get started building your own app"
+        inputId = "pages",
+        selected = "explore"
       )
     }
   )
+  
+  ## Set the Data Collection
+  dataCollection <- eventReactive(
+    eventExpr = input$mydata,
+    valueExpr = {
+      switch(
+        EXPR = input$mydata,
+        iris = iris,
+        FruitFlies2 = FruitFlies2
+      )
+    }
+  )
+  
+  
+  
+  click_saved <- reactiveValues(singleclick = NULL) #no click
+  
+  observeEvent(eventExpr = input$plot_click, handlerExpr = { 
+    click_saved$singleclick <- rbind(click_saved$singleclick,
+                                     c(input$plot_click[1], input$plot_click[2])) 
+    
+    click_saved$singleclick <- as.data.frame(click_saved$singleclick)
+    centroidsplot <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
+    
+    output$plot2 <- renderPlot({
+      ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+        geom_point(alpha = 0.5) +
+        geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]), 
+                   size=5, shape=17, inherit.aes = FALSE) +
+        theme_bw() +
+        scale_color_manual(values = boastUtils::psuPalette)
+      
+      #points(click_saved$singleclick[,1], click_saved$singleclick[,2], col="black", pch = 3, cex=3)
+    })
+    
+    output$check <- renderTable({
+      as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
+    })
+    
+  })
+  
+  
+  #initialize scatter dataframe
+  initScatter <- reactiveValues(init = data.frame(NumClut = c(),
+                                        TotWith = c()))
+  
+  
+  # if you click ready 
+  observeEvent(eventExpr = input$ready, handlerExpr = { 
+    
+    if(length(click_saved$singleclick)>0){
+      
+      centroids <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
+      
+      
+      ## identify a possible error
+      tryCatch({kdata <- kmeans(iris[,1:2], centers = centroids)},
+               error = function(e){
+                 sendSweetAlert(
+                   session = session,
+                   type = "error",
+                   title = "Choose a proper set of centroid",
+                   text = "your current choice of centroid led to 0 assignment of data to some centroids"
+                 )
+                 
+                 click_saved$singleclick <- c(NULL, NULL)
+                 
+                 output$check <- renderTable({
+                   as.data.frame(c(NULL, NULL))
+                 })
+                 
+                 output$plot2 <- renderPlot(
+                   expr = {
+                     ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+                       geom_point(alpha = 0.5) +
+                       theme_bw() +
+                       scale_color_manual(values = boastUtils::psuPalette)
+                   })
+                 
+               }
+                 )
+                
+      ## if no error then proceed        
+      if(length(click_saved$singleclick)>0){
+      
+        kdataset <- data.frame(kdata$centers, grouping = as.character(1:nrow(centroids)))
+        iris$grouping <- as.character(kdata$cluster)
+      
+        output$plot2 <- renderPlot(
+          expr = {
+            ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width, color = grouping)) +
+              geom_point(alpha = 0.6) +
+              geom_point(data = kdataset, aes(x = Sepal.Length, y = Sepal.Width, color = grouping),
+                       size=5, shape=17, inherit.aes = FALSE) +
+              theme_bw() +
+              scale_color_manual(values = boastUtils::psuPalette)
+          })
+        
+        # create scatter plot
+        newobs <- data.frame(NumClut = as.character(length(kdata$withinss)),
+                             TotWith = kdata$tot.withinss)
+        
+        initScatter$init <- rbind(initScatter$init, newobs)
+        
+        output$plotscatter <- renderPlot(
+          expr = {
+            ggplot(data = initScatter$init, aes(x = NumClut, y = TotWith)) +
+              geom_point() +
+              geom_boxplot() +
+              theme_bw() +
+              scale_color_manual(values = boastUtils::psuPalette)
+          })
+        
+        output$checkout <- renderTable({
+          arrange(initScatter$init, NumClut)
+        })
+        
+        }
+    } else {
+      sendSweetAlert(
+        session = session,
+        type = "info",
+        title = "No centroid found",
+        text = "Specify centroid on the diagram"
+      )
+    }
+  })
+  
+  # if you click RESET
+  observeEvent(eventExpr = input$reset, handlerExpr = { 
+    
+    # back no click
+    #click_saved$singleclick <- centroidata[6:10,]  #list() #niente cliccato
+    click_saved$singleclick <- c(NULL, NULL)
+    
+    output$check <- renderTable({
+      as.data.frame(c(NULL, NULL))
+    })
+    
+    output$plot2 <- renderPlot(
+      expr = {
+        ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+          geom_point(alpha = 0.5) +
+          theme_bw() +
+          scale_color_manual(values = boastUtils::psuPalette)
+      })
+    
+    
+  })
+  
+  # clear table
+  
+  
+  
+  
+  output$plot2 <- renderPlot(
+    expr = {
+      ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+        geom_point(alpha = 0.5) +
+        theme_bw() +
+        scale_color_manual(values = boastUtils::psuPalette)
+    })
+  
+  #plot for the example page
+  
+  observeEvent(
+    eventExpr = input$Exiter,
+    handlerExpr = {
+      k <- input$Exiter
+      scale <- 0
+      if (k >= 1.5){
+        scale <- 1
+      }
+      
+      basePlot <-
+        ggplot(data=filter(Kiterfunction$irisData, iteration == 1), 
+               aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+        geom_point(alpha=1-scale) +
+        theme_bw() +
+        scale_color_manual(values = boastUtils::psuPalette)
+      
+      if (k == 0.5){
+        outputPlot <- basePlot
+      } else {
+        outputPlot <- basePlot +
+          geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k)), 
+                     aes(x=xCoords,y=yCoords,color=grouping), size=5, shape=17)
+        
+        if (k >= 1.5){
+          outputPlot <- outputPlot + 
+            geom_point(data=filter(Kiterfunction$irisData, iteration == floor(k-0.5)), 
+                       aes(x=Sepal.Length,y=Sepal.Width,color=grouping), alpha=0.5)
+        }
+        
+        if (k >= 2){
+          outputPlot <- outputPlot +
+            geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k-1)), 
+                       aes(x=xCoords,y=yCoords,color=grouping),size=5,shape=2) +
+            geom_path(data=filter(Kiterfunction$centroids,
+                                  iteration == floor(k) | iteration == floor(k-1)), 
+                      aes(x = xCoords, y = yCoords, color = grouping))
+        }
+      }
+      output$Exdotplot <- renderPlot(expr = {outputPlot})
+      
+      
+      
+      ## barplot 
+      
+      totData <- 
+        filter(Kiterfunction$centroids, iteration <= k) %>%
+        group_by(iteration) %>%
+        summarise(total = sum(totWithin))
+      
+      barOutput <- 
+      ggplot(data=filter(Kiterfunction$centroids, iteration <= floor(k)), 
+             aes(x=iteration, y=totWithin, fill=grouping)) +
+             geom_bar(position="stack", stat="identity") +
+             geom_line(data=totData, aes(x=iteration, y=total), inherit.aes = FALSE) +
+             scale_fill_manual(values = boastUtils::psuPalette) +
+             theme_bw()
+      
+      output$Exbarplot <- renderPlot(expr = {barOutput})
+      
+    }
+  )
+  
+  
+  
 
+  
 }
 
-# Boast App Call ----
-boastUtils::boastApp(ui = ui, server = server)
+
+boastApp(ui = ui, server = server)
+
