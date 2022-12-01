@@ -9,10 +9,22 @@ library(boastUtils)
 library(dplyr)
 #library(Stat2Data)
 library(tidyselect)
+library(DT)
+
+library(devtools)
+library(easyGgplot2)
+library(Spectrum)
+#library(data.table)
+
+
+data(circles)
+circle <- as.data.frame(t(circles))
 
 
 
 data(iris) # ciation for iris
+iris <- iris[,1:2]
+
 #load file
 Kiterfunction <- readRDS("Kiterfunction.rds")
 
@@ -47,8 +59,8 @@ ui <- list(
         id = "pages",
         menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
         menuItem("Prerequisites", tabName = "Prerequisites", icon = icon("book")),
-        menuItem("Examples", tabName = "example", icon = icon("book")),
-        #menuItem("Explore", tabName = "explore", icon = icon("wpexplorer")),
+        menuItem("Example", tabName = "example", icon = icon("book")),
+        menuItem("Explore", tabName = "explore", icon = icon("wpexplorer")),
         menuItem("References", tabName = "references", icon = icon("leanpub"))
       ),
       tags$div(
@@ -63,7 +75,7 @@ ui <- list(
         tabItem(
           tabName = "overview",
           withMathJax(),
-          h1(em("k"),"-means Clustering"), # This should be the full name.
+          h1(em("k"),"- means Clustering"), # This should be the full name.
           h2("M I S S I O N"),
           p("Procced to the example page by clicking the Go Button below. If you have little
             no background with k-means_clustering, proceed to the Prerequisites Page for
@@ -188,14 +200,14 @@ ui <- list(
                 inputId = "Exiter", 
                 "Animation:", 
                 label = "current iteration",  
-                value = 0.5,  
-                min = 0.5,
-                max = 10,
-                step = 0.5,
-                animate = animationOptions(interval = 1500)
+                value = 0,  
+                min = 0,
+                max = 18,
+                step = 1,
+                animate = animationOptions(interval = 2000)
               )
             ),
-            uiOutput(outputId = "dataDescription"),
+            uiOutput(outputId = "dataDescription",style = "font-size:40px"),
             p(".")
           ),
           column(
@@ -214,13 +226,12 @@ ui <- list(
         tabName = "explore",
         withMathJax(),
         h2("Explore Data Collections"),
-        p("This page should include something for the user to do, the more
-            active and engaging, the better. The purpose of this page is to help
-            the user build a productive understanding of the concept your app
-            is dedicated to."),
+        p("Two datasets, iris and circles, are provided. Plot centroids on the scatter plot and 
+          click Run to run the K-means Algorithm. Check out the corresponding Total Within Sum of
+          Squre Value in the table and dotplot below."),
         fluidRow(
           column(
-            width = 4,
+            width = 5,
             offset = 0,
             wellPanel(
               selectInput(
@@ -228,22 +239,23 @@ ui <- list(
                 label = "Choose a data collection",
                 choices = c(
                   "iris" = "iris",
-                  "Blood" = "Blood1",
-                  "Fruit Flies" = "FruitFlies2"
+                  "circle" = "circle"
                 ),
                 selected = "iris"
               ),
-              actionButton("ready","Ready!"),
-              actionButton("reset","Reset!"),
-              tableOutput("checkout")
-            )
+              actionButton("ready","Run"),
+              actionButton("reset","Clear centroids"),
+              actionButton("clear","Clear Table")
+            ),
+            DTOutput("TotTable") #DTOutput("TotTable")
           ),
           column(
-            width = 8,
+            width = 7,
             offset = 0,
             br(),
             plotOutput(outputId = "plot2",click = "plot_click"),
-            plotOutput(outputId = "plotscatter",click = "plot_click")
+            #tableOutput("check"),
+            plotOutput(outputId = "plotscatter")
           )
         )
       ),
@@ -325,19 +337,21 @@ server <- function(input, output, session) {
   observeEvent(
     eventExpr = input$Exiter,
     handlerExpr = {
-      description <- switch(
-        EXPR = ((input$Exiter)%%1)*2+1,
-        "After the data points changes color, the position of centroids change
-         as well. The new centroid position will take on the mean x-coordinates and mean
-         y-coordinates of data points that the centroid has the same color with. For example, 
-         the new position of green centroid will move to the center of cluster of data points
-         colored in green. Then, a new round of coloring of data points start over again. These
-         iterative step carry on until there is no more change in the coloring of data points and 
-         position of the centroids",
-        "Notice: The color of the data points change at the background based on the
-         distance to the centroid they are cloest to. For example, the green data points
-         have the closest distance to the green centroid."
-      )
+      if (input$Exiter == 0){
+        description <- "Plot Data"
+      } else if (input$Exiter == 1){
+        description <- "Set 
+                        Centroids"
+      } else if (input$Exiter == 18){
+        description <- "Convergence"
+        
+      } else if (input$Exiter%%2 == 0){
+        description <- "Color 
+                        Points"
+      } else if (input$Exiter%%2 == 1){
+        description <- "Find 
+                        Centroids"
+      } 
       
       output$dataDescription <- renderUI(description)
     }
@@ -359,12 +373,12 @@ server <- function(input, output, session) {
   
   ## Set the Data Collection
   dataCollection <- eventReactive(
-    eventExpr = input$mydata,
+    eventExpr = input$selectData,
     valueExpr = {
       switch(
-        EXPR = input$mydata,
+        EXPR = input$selectData,
         iris = iris,
-        FruitFlies2 = FruitFlies2
+        circle = circle
       )
     }
   )
@@ -373,22 +387,47 @@ server <- function(input, output, session) {
   
   click_saved <- reactiveValues(singleclick = NULL) #no click
   
-  observeEvent(eventExpr = input$plot_click, handlerExpr = { 
-    click_saved$singleclick <- rbind(click_saved$singleclick,
-                                     c(input$plot_click[1], input$plot_click[2])) 
+  observeEvent(eventExpr = input$plot_click,
+               handlerExpr = { 
+                        click_saved$singleclick <- rbind(click_saved$singleclick,
+                                                  c(input$plot_click[1], input$plot_click[2])) 
     
     click_saved$singleclick <- as.data.frame(click_saved$singleclick)
+    
+    # if there are more than 8 centroids
+    if(nrow(click_saved$singleclick)>8){
+      sendSweetAlert(
+        session = session,
+        type = "error",
+        title = "More than 8 centroids chosen",
+        text = "Limit the number of centroids in the plot to at most 8"
+      )
+      click_saved$singleclick <- click_saved$singleclick[1:8,]
+    }
+      
     centroidsplot <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
     
-    output$plot2 <- renderPlot({
-      ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+    output$plot2 <- renderPlot( expr = {
+      ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
+                                                          "Sepal.Length","x1"),
+                                                 y=ifelse(input$selectData == "iris",
+                                                          "Sepal.Width","y1")), 
+             color="black") +
         geom_point(alpha = 0.5) +
         geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]), 
                    size=5, shape=17, inherit.aes = FALSE) +
         theme_bw() +
-        scale_color_manual(values = boastUtils::psuPalette)
+        scale_color_manual(values = boastUtils::psuPalette) +
+        guides(color =  guide_legend(title = "Cluster Grouping")) +
+        xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
+        ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
+        theme(legend.title = element_text(size = 20),
+              legend.text = element_text(size = 20),
+              axis.title = element_text(size = 20),
+              legend.position="bottom"
+              )
       
-      #points(click_saved$singleclick[,1], click_saved$singleclick[,2], col="black", pch = 3, cex=3)
+      
     })
     
     output$check <- renderTable({
@@ -403,16 +442,24 @@ server <- function(input, output, session) {
                                         TotWith = c()))
   
   
+  
+  
   # if you click ready 
-  observeEvent(eventExpr = input$ready, handlerExpr = { 
+  observeEvent(eventExpr = input$ready, handlerExpr = {
     
-    if(length(click_saved$singleclick)>0){
+    # accounted for error when more than 8 centroids
+      if(length(click_saved$singleclick)>0){
       
       centroids <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
       
+      if (input$selectData == "iris"){
+        currentData <- iris[,1:2]
+      } else {
+        currentData <- circle[,1:2]
+      }
       
       ## identify a possible error
-      tryCatch({kdata <- kmeans(iris[,1:2], centers = centroids)},
+      tryCatch({kdata <- kmeans(currentData, centers = centroids)},
                error = function(e){
                  sendSweetAlert(
                    session = session,
@@ -429,10 +476,22 @@ server <- function(input, output, session) {
                  
                  output$plot2 <- renderPlot(
                    expr = {
-                     ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+                     ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
+                                                                         "Sepal.Length","x1"),
+                                                                y=ifelse(input$selectData == "iris",
+                                                                         "Sepal.Width","y1")), 
+                            color="black") +
                        geom_point(alpha = 0.5) +
                        theme_bw() +
-                       scale_color_manual(values = boastUtils::psuPalette)
+                       scale_color_manual(values = boastUtils::psuPalette) +
+                       guides(color =  guide_legend(title = "Cluster Grouping")) +
+                       xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
+                       ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
+                       theme(legend.title = element_text(size = 20),
+                             legend.text = element_text(size = 20),
+                             axis.title = element_text(size = 20),
+                             legend.position="bottom"
+                       )
                    })
                  
                }
@@ -442,36 +501,75 @@ server <- function(input, output, session) {
       if(length(click_saved$singleclick)>0){
       
         kdataset <- data.frame(kdata$centers, grouping = as.character(1:nrow(centroids)))
-        iris$grouping <- as.character(kdata$cluster)
+        currentData$grouping <- as.character(kdata$cluster)
       
         output$plot2 <- renderPlot(
           expr = {
-            ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width, color = grouping)) +
+            ggplot(data = currentData, aes_string(x=ifelse(input$selectData == "iris",
+                                                                "Sepal.Length","x1"),
+                                                  y=ifelse(input$selectData == "iris",
+                                                                "Sepal.Width","y1"),
+                   color = "grouping")) +
               geom_point(alpha = 0.6) +
-              geom_point(data = kdataset, aes(x = Sepal.Length, y = Sepal.Width, color = grouping),
+              geom_point(data = kdataset, aes_string(x=ifelse(input$selectData == "iris",
+                                                              "Sepal.Length","x1"),
+                                                     y=ifelse(input$selectData == "iris",
+                                                              "Sepal.Width","y1"),
+                                                     color = "grouping"),
                        size=5, shape=17, inherit.aes = FALSE) +
               theme_bw() +
-              scale_color_manual(values = boastUtils::psuPalette)
+              scale_color_manual(values = boastUtils::psuPalette) +
+              guides(color =  guide_legend(title = "Cluster Grouping")) +
+              xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
+              ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
+              theme(legend.title = element_text(size = 20),
+                    legend.text = element_text(size = 20),
+                    axis.title = element_text(size = 20),
+                    legend.position="bottom"
+              )
           })
         
         # create scatter plot
         newobs <- data.frame(NumClut = as.character(length(kdata$withinss)),
-                             TotWith = kdata$tot.withinss)
+                             TotWith = round(kdata$tot.withinss, digits = 3))
         
         initScatter$init <- rbind(initScatter$init, newobs)
         
         output$plotscatter <- renderPlot(
           expr = {
-            ggplot(data = initScatter$init, aes(x = NumClut, y = TotWith)) +
-              geom_point() +
-              geom_boxplot() +
+            ggplot(data=initScatter$init, aes(x=NumClut, y=TotWith)) +
+              geom_dotplot(binaxis='y', stackdir='center', binwidth = 60, dotsize = 0.1) +
               theme_bw() +
-              scale_color_manual(values = boastUtils::psuPalette)
+              xlab("Number of Cluster") +
+              ylab("Total Within Sum of Square") +
+              theme(legend.title = element_text(size = 20),
+                    legend.text = element_text(size = 20),
+                    axis.title = element_text(size = 20),
+                    legend.position="bottom"
+              )
+              
           })
         
-        output$checkout <- renderTable({
-          arrange(initScatter$init, NumClut)
-        })
+        ClusterTable <- arrange(initScatter$init, NumClut)
+        names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
+        
+        output$TotTable <- DT::renderDT(
+          expr = ClusterTable,
+          caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
+          style = "bootstrap4", # You must use this style
+          rownames = TRUE,
+          options = list( # You must use these options
+            responsive = TRUE, # allows the data table to be mobile friendly
+            scrollX = TRUE, # allows the user to scroll through a wide table
+            paging = FALSE,
+            searching = FALSE,
+            info = FALSE,
+            columnDefs = list(  # These will set alignment of data values
+              # Notice the use of ncol on your data frame; leave the 1 as is.
+              list(className = 'dt-center', targets = 1:ncol(ClusterTable))
+            )
+          )
+        )
         
         }
     } else {
@@ -484,8 +582,56 @@ server <- function(input, output, session) {
     }
   })
   
+  # clear table button
+  
+  observeEvent(eventExpr = c(input$clear, input$selectData), handlerExpr = {
+    
+    initScatter$init <- data.frame(NumClut = c(),    # clear table
+                                   TotWith = c())
+    ClusterTable <- initScatter$init
+    #names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
+    
+    output$TotTable <- DT::renderDT(
+      expr = ClusterTable,
+      caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
+      style = "bootstrap4", # You must use this style
+      rownames = TRUE, # format round
+      options = list( # You must use these options
+        responsive = TRUE, # allows the data table to be mobile friendly
+        scrollX = TRUE, # allows the user to scroll through a wide table
+        paging = FALSE,
+        searching = FALSE,
+        info = FALSE,
+        columnDefs = list(  # These will set alignment of data values
+          # Notice the use of ncol on your data frame; leave the 1 as is.
+          list(className = 'dt-center', targets = 1:ncol(ClusterTable))
+        )
+      )
+    )
+    
+    output$plotscatter <- renderPlot(               # respond to scatter plot in ui
+      expr = {
+        ggplot(data = NULL) +
+          geom_point() +
+          geom_jitter() +
+          theme_bw() +
+          scale_color_manual(values = boastUtils::psuPalette) +
+          ylab("Total Within Sum of Squares") +
+          xlab("Number of Cluster") +
+          theme(legend.title = element_text(size = 20),
+                legend.text = element_text(size = 20),
+                axis.title = element_text(size = 20),
+                legend.position="bottom"
+          )
+      })
+    
+    
+  }
+               
+               )
+  
   # if you click RESET
-  observeEvent(eventExpr = input$reset, handlerExpr = { 
+  observeEvent(eventExpr = c(input$reset, input$selectData), handlerExpr = { 
     
     # back no click
     #click_saved$singleclick <- centroidata[6:10,]  #list() #niente cliccato
@@ -497,26 +643,49 @@ server <- function(input, output, session) {
     
     output$plot2 <- renderPlot(
       expr = {
-        ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+        ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
+                                                            "Sepal.Length","x1"),
+                                                   y=ifelse(input$selectData == "iris",
+                                                            "Sepal.Width","y1")), 
+               color="black") +
           geom_point(alpha = 0.5) +
           theme_bw() +
-          scale_color_manual(values = boastUtils::psuPalette)
+          scale_color_manual(values = boastUtils::psuPalette) +
+          guides(color =  guide_legend(title = "Cluster Grouping")) +
+          xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
+          ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
+          theme(legend.title = element_text(size = 20),
+                legend.text = element_text(size = 20),
+                axis.title = element_text(size = 20),
+                legend.position="bottom"
+          )
       })
     
     
   })
   
-  # clear table
+
   
   
   
   
   output$plot2 <- renderPlot(
     expr = {
-      ggplot(data = iris, aes(x=Sepal.Length,y=Sepal.Width), color="black") +
+      ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
+                                                          "Sepal.Length","x1"),
+                                                 y=ifelse(input$selectData == "iris",
+                                                          "Sepal.Width","y1")), 
+             color="black") +
         geom_point(alpha = 0.5) +
         theme_bw() +
-        scale_color_manual(values = boastUtils::psuPalette)
+        scale_color_manual(values = boastUtils::psuPalette) +
+        xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
+        ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
+        theme(legend.title = element_text(size = 20),
+              legend.text = element_text(size = 20),
+              axis.title = element_text(size = 20),
+              legend.position="bottom"
+        )
     })
   
   #plot for the example page
@@ -524,7 +693,7 @@ server <- function(input, output, session) {
   observeEvent(
     eventExpr = input$Exiter,
     handlerExpr = {
-      k <- input$Exiter
+      k <- (input$Exiter+1)/2
       scale <- 0
       if (k >= 1.5){
         scale <- 1
@@ -537,9 +706,13 @@ server <- function(input, output, session) {
         theme_bw() +
         scale_color_manual(values = boastUtils::psuPalette) +
         guides(color =  guide_legend(title = "Cluster Grouping")) +
-        theme(legend.title = element_text(size = 20)) +
-        theme(legend.text = element_text(size = 20)) +
-        theme(axis.title = element_text(size = 20)) 
+        xlab("Sepal Length (cm)") +
+        ylab("Sepal Width (cm)") +
+        theme(legend.title = element_text(size = 20),
+              legend.text = element_text(size = 20),
+              axis.title = element_text(size = 20),
+              legend.position="bottom"
+              )
       
       if (k == 0.5){
         outputPlot <- basePlot
@@ -581,11 +754,15 @@ server <- function(input, output, session) {
              geom_line(data=totData, aes(x=iteration, y=total), inherit.aes = FALSE) +
              scale_fill_manual(values = boastUtils::psuPalette) +
              theme_bw() +
-             ylab("Totla Within Sum of Squares") +
-             theme(legend.title = element_text(size = 20)) +
-             theme(legend.text = element_text(size = 20)) +
-             theme(axis.title = element_text(size = 20)) +
-             scale_x_continuous(breaks = seq(1,10,1))
+             ylab("Total Within Sum of Squares") +
+             xlab("Iteration") +
+             scale_x_continuous(breaks = seq(1,10,1)) +
+             guides(fill =  guide_legend(title = "Cluster Grouping")) +
+             theme(legend.title = element_text(size = 20),
+                legend.text = element_text(size = 20),
+                axis.title = element_text(size = 20),
+                legend.position="bottom"
+              )
              
       
       output$Exbarplot <- renderPlot(expr = {barOutput})
