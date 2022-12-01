@@ -199,7 +199,7 @@ ui <- list(
               sliderInput(
                 inputId = "Exiter", 
                 "Animation:", 
-                label = "current iteration",  
+                label = "Current Step",  
                 value = 0,  
                 min = 0,
                 max = 18,
