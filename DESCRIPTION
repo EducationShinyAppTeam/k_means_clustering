@@ -1,9 +1,12 @@
 Title: Clustering App 
 ShortName: Clustering App
-Date: 2022-06-10
+Date: 2023-10-25
 Lifecycle: experimental
 Authors@R: c(
-    person(given = "Jacopo", family = "Di Iorio", email = "jqd5830@psu.edu", role = c("aut", "cre"))
+    person(given = "Hongyi", family = "Xia", role = c("aut", "cre")),
+    person(given = "Jacopo", family = "Di Iorio", email = "jqd5830@psu.edu", role = c("aut", "cre")),
+    person(given = "Dennis", family = "Pearl", role = c("aut")),
+    person(given = "Neil", family = "Hatfield", role = c("aut"))
   )
 Chapter:Chapter 11: Data Science
 Description: An App to introduce and demostrate the idea of clustering 
@@ -12,8 +15,8 @@ LearningObjectives: c(
     respect to each nearest centroids."
   )
 DisplayMode: Normal
-URL: https://psu-eberly.shinyapps.io/personal_introduction_app-hy2021-IT
-BugReports: https://github.com/EducationShinyAppTeam/personal_introduction_app-hy2021-IT/issues
+URL: https://psu-eberly.shinyapps.io/k_means_clustering
+BugReports: https://github.com/EducationShinyAppTeam/k_means_clustering/issues
 License: CC-BY-NC-SA-4.0
 Tags: simulation
 Type: Shiny

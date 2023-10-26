@@ -1,6 +1,5 @@
-
-library(fields)
-library(tidyverse)
+# Load packages ----
+# library(fields)
 library(shiny)
 library(shinydashboard)
 library(shinyBS)
@@ -8,42 +7,37 @@ library(shinyWidgets)
 library(boastUtils)
 library(dplyr)
 #library(Stat2Data)
-library(tidyselect)
+# library(tidyselect)
 library(DT)
+library(ggplot2)
 
-library(devtools)
-library(easyGgplot2)
-library(Spectrum)
+# library(devtools)
+# library(easyGgplot2)
+# library(Spectrum)
 #library(data.table)
 
-
-data(circles)
-circle <- as.data.frame(t(circles))
-
-
+# Load data ----
+# data(circles, package = "DRIP")
+# circle <- as.data.frame(t(circles))
 
 data(iris) # ciation for iris
 iris <- iris[,1:2]
 
-#load file
+## k-means Iteration data ----
 Kiterfunction <- readRDS("Kiterfunction.rds")
-
-
-
 
 # Define UI for App ----
 ui <- list(
-  ## Create the app page ----
   dashboardPage(
     skin = "red",
-    ### Create the app header ----
+    ## Header ----
     dashboardHeader(
-      title = "k-means Clustering", # You may use a shortened form of the title here
+      title = "k-means Clustering",
       titleWidth = 250,
       tags$li(class = "dropdown", actionLink("info", icon("info"))),
       tags$li(
         class = "dropdown",
-        boastUtils::surveyLink(name = "k_means Clustering")
+        boastUtils::surveyLink(name = "k_means_clustering")
       ),
       tags$li(
         class = "dropdown",
@@ -52,15 +46,15 @@ ui <- list(
         )
       )
     ),
-    ### Create the sidebar/left navigation menu ----
+    ## Sidebar ----
     dashboardSidebar(
       width = 250,
       sidebarMenu(
         id = "pages",
-        menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
+        menuItem("Overview", tabName = "overview", icon = icon("gauge-high")),
         menuItem("Prerequisites", tabName = "Prerequisites", icon = icon("book")),
-        menuItem("Example", tabName = "example", icon = icon("book")),
-        menuItem("Explore", tabName = "explore", icon = icon("wpexplorer")),
+        menuItem("Example", tabName = "example", icon = icon("book-open-reader")),
+        # menuItem("Explore", tabName = "explore", icon = icon("wpexplorer")),
         menuItem("References", tabName = "references", icon = icon("leanpub"))
       ),
       tags$div(
@@ -68,18 +62,16 @@ ui <- list(
         boastUtils::sidebarFooter()
       )
     ),
-    ### Create the content ----
+    ## Body ----
     dashboardBody(
       tabItems(
-        #### Set up the Overview Page ----
+        ### Overview Page ----
         tabItem(
           tabName = "overview",
           withMathJax(),
-          h1(em("k"),"- means Clustering"), # This should be the full name.
-          h2("M I S S I O N"),
-          p("Procced to the example page by clicking the Go Button below. If you have little
-            no background with k-means_clustering, proceed to the Prerequisites Page for
-            more relevent information."),
+          h1(em("k"),"- means Clustering"),
+          p("This app allows students to explore the", tags$em("k"), "-means
+            Clustering algorithm."),
           div(
             style = "text-align: center;",
             bsButton(
@@ -94,11 +86,11 @@ ui <- list(
           br(),
           h2("Acknowledgements"),
           p(
-            "The orginial version of the app was developed and coded by Hongyi Xia",
+            "This app was originally developed and coded by Hongyi Xia based upon
+            an app created by Dr. Jacopo Di Iorio. Dr. Di Iorio oversaw my work.",
             br(),
-            "I would like to acknowledge and appreciate Professor Hatfield, 
-            Professor Pearl, and Professor Jacopo for their guidance and 
-            support.",
+            "I would like to acknowledge Drs. Di Iorio, Hatfield, and Pearl for
+            their guidance and support.",
             br(),
             br(),
             "Cite this app as:",
@@ -106,109 +98,103 @@ ui <- list(
             citeApp(),
             br(),
             br(),
-            div(class = "updated", "Last Update: 6/13/2022 by Hongyi Xia.")
+            div(class = "updated", "Last Update: 10/25/2023 by NJH.")
           )
         ),
-        
+        ### Prereqs ----
         tabItem(
           tabName = "Prerequisites",
           withMathJax(),
-          h2("Prerequisites"), 
-          p("Review information about the k_means clustering."), 
-          br(), 
+          h2("Prerequisites"),
+          p("Review information about the ", tags$em("k"), "-means clustering
+            algorithm."),
+          br(),
           box(
-            width = 12, 
+            width = 12,
             collapsible = TRUE,
             collapsed = FALSE,
-            title = h3("Clustering"), 
-            p("Definition: Clustering is the general unsupervised task of grouping 
-              a set of objects in such a way that objects in the same group (called a cluster) 
-              are more similar to each other than to those in other groups (clusters)."), 
-            p("It can be achieved by various algorithms. Broadly speaking, according 
-              to the group partition obtained we can divide clustering methods in two groups:"), 
-            p("Hard Clustering: each data point belongs to only one cluster."),
-            p("Soft Clustering: for each point we have a probability or likelihood 
-              to be assigned in a cluster. In some algorithm it is also possible to 
-              identify overlapping clusters"),
-            p("We are going to focus mainly on exhaustive (every data point is assigned) 
-              hard clustering algorithms, k-means")
-          ), 
-          box(
-            width = 12, 
-            collapsible = TRUE,
-            collapsed = FALSE,
-            title = h3("K-means Algorithm"), 
-            p("k -means Clustering is a partitioning algorithm that splits the data in 
-              k clusters by iteratively computing centroids and moving data points to 
-              the closest centroids until convergence."), 
-            p("For determining the distance between data points and centrods in this k_means app,
-              Euclidean distance is applied by default, defined 
-              by"),
-            withMathJax(helpText('$$ \\sum_{i=1}^n \\sqrt{(x_i - y_i)^2} $$'))
-            
-            
-          ), 
-          box(
-            width = 12, 
-            collapsible = TRUE,
-            collapsed = FALSE,
-            title = h3("Total within cluster sum of squares"), 
-            p("The within-cluster sum of squares is a measure of the variability 
-              of the observations within each cluster. In general, a cluster that 
-              has a small sum of squares is more compact than a cluster that has 
-              a _large sum of squares. As the number of observations increases, 
-              the sum of squares becomes larger, so it depends on the number of elements."), 
-            p("In general we can sum the within-cluster sum of squares to get the 
-              total within cluster sum of square that cna be used to assess the 
-              goodness of our clustering."),
-            p("We also canidentify the optimal number of clusters with the Total within cluster 
-              sum of squares by looking for an elbow in the Total within cluster 
-              sum of squares versus number of clusters plot (provided to you in
-              the example page")
-            
+            title = strong("Clustering"),
+            p("Clustering is the general unsupervised task of grouping a set of
+              objects in such a way that objects in the same group (called a
+              cluster) are more similar to each other than to those in other
+              groups (clusters)."
+            ),
+            p("Clustering may be achieved by various algorithms. Broadly speaking,
+              according to the group partition obtained we can divide clustering
+              methods in two groups:"
+            ),
+            tags$ul(
+              tags$li(tags$strong("Hard Clustering:"), "each data point belongs
+                      to only one cluster."),
+              tags$li(tags$strong("Soft Clustering:"), "for each point we have a
+                      probability or likelihood to be assigned in a cluster. In
+                      some algorithm it is also possible to identify overlapping
+                      clusters")
+            ),
+            p("We are going to focus mainly on exhaustive (every data point is
+              assigned) hard clustering algorithms, k-means, in this app.")
           ),
-          
-          br(), 
-          ##### Go Button
-          div(
-            style = "text-align: center",
-            bsButton(
-              inputId = "goExplore",
-              label = "GO!",
-              size = "large",
-              icon = icon("bolt"),
-              style = "default"
+          box(
+            width = 12,
+            collapsible = TRUE,
+            collapsed = FALSE,
+            title = tags$strong("K-means Algorithm"),
+            p("The", tags$em("k"), "-means Clustering algorithm is a partitioning
+              algorithm that splits the data into", tags$em("k"), "clusters by
+              iteratively computing centroids and moving data points to the
+              closest centroids until convergence."),
+            p("For determining the distance between data points and centroids in
+              this app, we use the Euclidean distance, defined as
+              \\[\\sum_{i=1}^n \\sqrt{(x_i - y_i)^2} \\]"
             )
+          ),
+          box(
+            width = 12,
+            collapsible = TRUE,
+            collapsed = FALSE,
+            title = tags$strong("Total within cluster sum of squares"),
+            p("The within-cluster sum of squares is a measure of the variability
+              of the observations within each cluster. In general, a cluster that
+              has a small sum of squares is more compact than a cluster that has
+              a large sum of squares. As the number of observations increases,
+              the sum of squares becomes larger, so it depends on the number of
+              elements."),
+            p("In general, we can sum the within-cluster sum of squares to get the
+              total within cluster sum of squares that can be used to assess the
+              goodness of our clustering."),
+            p("We also can identify the optimal number of clusters with the Total
+              within cluster sum of squares by looking for an elbow in the Total
+              within cluster sum of squares versus number of clusters plot. Check
+              out this plot on the Example Page.")
           )
-        ), 
-      
-      ### set up example page
+        ),
+      ### Example page ----
       tabItem(
         tabName = "example",
         withMathJax(),
-        h2("Illustrative example of K-means with 3 centroids"),
-        p("Check out the slider with a play button to see changes in the cluster 
-          centroids with iterations of the K-means algorithm. The stacked barplot 
-          that accompanies the centroids plot show changes in the within-group 
-          distances as iterations progress."),
+        h2("Illustrative Example of K-means with 3 Centroids"),
+        p("Move the slider (or press the play button) to watch what changes in
+          the plot as the ", tags$em("k"), "-means clustering algorithm gets
+          applied. The slider steps through mutiple iterations of the K-means
+          algorithm, displaying how the centroids move and data points get
+          re-grouped. The stacked barplot that accompanies the centroids plot
+          shows changes in the within-group distances as iterations progress."),
         fluidRow(
           column(
             width = 4,
             offset = 0,
             wellPanel(
               sliderInput(
-                inputId = "Exiter", 
-                "Animation:", 
-                label = "Current Step",  
-                value = 0,  
+                inputId = "Exiter",
+                label = "Current step",
+                value = 0,
                 min = 0,
                 max = 18,
                 step = 1,
                 animate = animationOptions(interval = 2000)
               )
             ),
-            uiOutput(outputId = "dataDescription",style = "font-size:40px"),
-            p(".")
+            uiOutput(outputId = "dataDescription"),
           ),
           column(
             width = 8,
@@ -219,14 +205,12 @@ ui <- list(
           )
         )
       ),
-        
-        #### Set up an Explore Page ----
-        ### Explore Page ----
+      ### Explore Page ----
       tabItem(
         tabName = "explore",
         withMathJax(),
         h2("Explore Data Collections"),
-        p("Two datasets, iris and circles, are provided. Plot centroids on the scatter plot and 
+        p("Two datasets, iris and circles, are provided. Plot centroids on the scatter plot and
           click Run to run the K-means Algorithm. Check out the corresponding Total Within Sum of
           Squre Value in the table and dotplot below."),
         fluidRow(
@@ -259,7 +243,7 @@ ui <- list(
           )
         )
       ),
-        
+
         ### References Page ----
         tabItem(
           tabName = "references",
@@ -281,7 +265,7 @@ ui <- list(
           ),
           p(
             class = "hangingindent",
-            "Change, W., and Borges Ribeiro, B. (2021). shinydashboard: Create 
+            "Change, W., and Borges Ribeiro, B. (2021). shinydashboard: Create
             dashboards with 'shiny'. (v 0.7.2) [R package]. Available from
             https://CRAN.R-project.org/package=shinydashboard"
           ),
@@ -294,20 +278,20 @@ ui <- list(
           ),
           p(
             class = "hangingindent",
-            "Hadley, W., RStudio (2021). tidyverse: Easily Install and Load the 
+            "Hadley, W., RStudio (2021). tidyverse: Easily Install and Load the
             'Tidyverse'. (v 1.3.1) [R package]. Available from
              https://CRAN.R-project.org/package=tidyverse"
           ),
           p(
             class = "hangingindent",
-            "Henry, L., Wickham, H., RStudio (2022). tidyselect: Select from a 
+            "Henry, L., Wickham, H., RStudio (2022). tidyselect: Select from a
             Set of Strings. (v 1.1.2) [R package]. Available from
              https://cran.r-project.org/web/packages/tidyselect/index.html"
           ),
           p(
             class = "hangingindent",
             "Nychka, D., Furrer, R., Paige, J., Sain, S., Gerber, F., Iverson, M.,
-            and University Corporation for Atmospheric Research (2021). 
+            and University Corporation for Atmospheric Research (2021).
             fields: Tools for Spatial Data. (v 13.0.0). [R package]. Available from
             https://CRAN.R-project.org/package=fields"
           ),
@@ -317,8 +301,8 @@ ui <- list(
             inputs widgets for shiny. (v 0.7.0). [R package]. Available from
             https://CRAN.R-project.org/package=shinyWidgets"
           ),
-          
-  
+
+
           br(),
           br(),
           br(),
@@ -332,33 +316,33 @@ ui <- list(
 
 
 server <- function(input, output, session) {
-  
+
   ## data description
   observeEvent(
     eventExpr = input$Exiter,
     handlerExpr = {
-      if (input$Exiter == 0){
+      if (input$Exiter == 0) {
         description <- "Plot Data"
-      } else if (input$Exiter == 1){
-        description <- "Set 
-                        Centroids"
-      } else if (input$Exiter == 18){
+      } else if (input$Exiter == 1) {
+        description <- "Set Initial Centroids"
+      } else if (input$Exiter == 18) {
         description <- "Convergence"
-        
-      } else if (input$Exiter%%2 == 0){
-        description <- "Color 
-                        Points"
-      } else if (input$Exiter%%2 == 1){
-        description <- "Find 
-                        Centroids"
-      } 
-      
-      output$dataDescription <- renderUI(description)
+      } else if (input$Exiter%%2 == 0) {
+        description <- "Color Points"
+      } else if (input$Exiter%%2 == 1) {
+        description <- "Find New Centroids"
+      }
+
+      output$dataDescription <- renderUI(
+        expr = {
+          p(tags$strong("What's happening:"), description)
+        }
+      )
     }
   )
-  
- 
-  
+
+
+
   ## Set Buttons
   observeEvent(
     eventExpr = input$goExplore,
@@ -370,7 +354,7 @@ server <- function(input, output, session) {
       )
     }
   )
-  
+
   ## Set the Data Collection
   dataCollection <- eventReactive(
     eventExpr = input$selectData,
@@ -382,18 +366,18 @@ server <- function(input, output, session) {
       )
     }
   )
-  
-  
-  
+
+
+
   click_saved <- reactiveValues(singleclick = NULL) #no click
-  
+
   observeEvent(eventExpr = input$plot_click,
-               handlerExpr = { 
+               handlerExpr = {
                         click_saved$singleclick <- rbind(click_saved$singleclick,
-                                                  c(input$plot_click[1], input$plot_click[2])) 
-    
+                                                  c(input$plot_click[1], input$plot_click[2]))
+
     click_saved$singleclick <- as.data.frame(click_saved$singleclick)
-    
+
     # if there are more than 8 centroids
     if(nrow(click_saved$singleclick)>8){
       sendSweetAlert(
@@ -404,17 +388,17 @@ server <- function(input, output, session) {
       )
       click_saved$singleclick <- click_saved$singleclick[1:8,]
     }
-      
+
     centroidsplot <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
-    
+
     output$plot2 <- renderPlot( expr = {
       ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
                                                           "Sepal.Length","x1"),
                                                  y=ifelse(input$selectData == "iris",
-                                                          "Sepal.Width","y1")), 
+                                                          "Sepal.Width","y1")),
              color="black") +
         geom_point(alpha = 0.5) +
-        geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]), 
+        geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]),
                    size=5, shape=17, inherit.aes = FALSE) +
         theme_bw() +
         scale_color_manual(values = boastUtils::psuPalette) +
@@ -426,38 +410,38 @@ server <- function(input, output, session) {
               axis.title = element_text(size = 20),
               legend.position="bottom"
               )
-      
-      
+
+
     })
-    
+
     output$check <- renderTable({
       as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
     })
-    
+
   })
-  
-  
+
+
   #initialize scatter dataframe
   initScatter <- reactiveValues(init = data.frame(NumClut = c(),
                                         TotWith = c()))
-  
-  
-  
-  
-  # if you click ready 
+
+
+
+
+  # if you click ready
   observeEvent(eventExpr = input$ready, handlerExpr = {
-    
+
     # accounted for error when more than 8 centroids
       if(length(click_saved$singleclick)>0){
-      
+
       centroids <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
-      
+
       if (input$selectData == "iris"){
         currentData <- iris[,1:2]
       } else {
         currentData <- circle[,1:2]
       }
-      
+
       ## identify a possible error
       tryCatch({kdata <- kmeans(currentData, centers = centroids)},
                error = function(e){
@@ -467,19 +451,19 @@ server <- function(input, output, session) {
                    title = "Choose a proper set of centroid",
                    text = "your current choice of centroid led to 0 assignment of data to some centroids"
                  )
-                 
+
                  click_saved$singleclick <- c(NULL, NULL)
-                 
+
                  output$check <- renderTable({
                    as.data.frame(c(NULL, NULL))
                  })
-                 
+
                  output$plot2 <- renderPlot(
                    expr = {
                      ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
                                                                          "Sepal.Length","x1"),
                                                                 y=ifelse(input$selectData == "iris",
-                                                                         "Sepal.Width","y1")), 
+                                                                         "Sepal.Width","y1")),
                             color="black") +
                        geom_point(alpha = 0.5) +
                        theme_bw() +
@@ -493,16 +477,16 @@ server <- function(input, output, session) {
                              legend.position="bottom"
                        )
                    })
-                 
+
                }
                  )
-                
-      ## if no error then proceed        
+
+      ## if no error then proceed
       if(length(click_saved$singleclick)>0){
-      
+
         kdataset <- data.frame(kdata$centers, grouping = as.character(1:nrow(centroids)))
         currentData$grouping <- as.character(kdata$cluster)
-      
+
         output$plot2 <- renderPlot(
           expr = {
             ggplot(data = currentData, aes_string(x=ifelse(input$selectData == "iris",
@@ -528,13 +512,13 @@ server <- function(input, output, session) {
                     legend.position="bottom"
               )
           })
-        
+
         # create scatter plot
         newobs <- data.frame(NumClut = as.character(length(kdata$withinss)),
                              TotWith = round(kdata$tot.withinss, digits = 3))
-        
+
         initScatter$init <- rbind(initScatter$init, newobs)
-        
+
         output$plotscatter <- renderPlot(
           expr = {
             ggplot(data=initScatter$init, aes(x=NumClut, y=TotWith)) +
@@ -547,12 +531,12 @@ server <- function(input, output, session) {
                     axis.title = element_text(size = 20),
                     legend.position="bottom"
               )
-              
+
           })
-        
+
         ClusterTable <- arrange(initScatter$init, NumClut)
         names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
-        
+
         output$TotTable <- DT::renderDT(
           expr = ClusterTable,
           caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
@@ -570,7 +554,7 @@ server <- function(input, output, session) {
             )
           )
         )
-        
+
         }
     } else {
       sendSweetAlert(
@@ -581,16 +565,16 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+
   # clear table button
-  
+
   observeEvent(eventExpr = c(input$clear, input$selectData), handlerExpr = {
-    
+
     initScatter$init <- data.frame(NumClut = c(),    # clear table
                                    TotWith = c())
     ClusterTable <- initScatter$init
     #names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
-    
+
     output$TotTable <- DT::renderDT(
       expr = ClusterTable,
       caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
@@ -608,7 +592,7 @@ server <- function(input, output, session) {
         )
       )
     )
-    
+
     output$plotscatter <- renderPlot(               # respond to scatter plot in ui
       expr = {
         ggplot(data = NULL) +
@@ -624,29 +608,29 @@ server <- function(input, output, session) {
                 legend.position="bottom"
           )
       })
-    
-    
+
+
   }
-               
+
                )
-  
+
   # if you click RESET
-  observeEvent(eventExpr = c(input$reset, input$selectData), handlerExpr = { 
-    
+  observeEvent(eventExpr = c(input$reset, input$selectData), handlerExpr = {
+
     # back no click
     #click_saved$singleclick <- centroidata[6:10,]  #list() #niente cliccato
     click_saved$singleclick <- c(NULL, NULL)
-    
+
     output$check <- renderTable({
       as.data.frame(c(NULL, NULL))
     })
-    
+
     output$plot2 <- renderPlot(
       expr = {
         ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
                                                             "Sepal.Length","x1"),
                                                    y=ifelse(input$selectData == "iris",
-                                                            "Sepal.Width","y1")), 
+                                                            "Sepal.Width","y1")),
                color="black") +
           geom_point(alpha = 0.5) +
           theme_bw() +
@@ -660,21 +644,21 @@ server <- function(input, output, session) {
                 legend.position="bottom"
           )
       })
-    
-    
-  })
-  
 
-  
-  
-  
-  
+
+  })
+
+
+
+
+
+
   output$plot2 <- renderPlot(
     expr = {
       ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
                                                           "Sepal.Length","x1"),
                                                  y=ifelse(input$selectData == "iris",
-                                                          "Sepal.Width","y1")), 
+                                                          "Sepal.Width","y1")),
              color="black") +
         geom_point(alpha = 0.5) +
         theme_bw() +
@@ -687,9 +671,9 @@ server <- function(input, output, session) {
               legend.position="bottom"
         )
     })
-  
+
   #plot for the example page
-  
+
   observeEvent(
     eventExpr = input$Exiter,
     handlerExpr = {
@@ -698,9 +682,9 @@ server <- function(input, output, session) {
       if (k >= 1.5){
         scale <- 1
       }
-      
+
       basePlot <-
-        ggplot(data=filter(Kiterfunction$irisData, iteration == 1), 
+        ggplot(data=filter(Kiterfunction$irisData, iteration == 1),
                aes(x=Sepal.Length,y=Sepal.Width), color="black") +
         geom_point(alpha=1-scale) +
         theme_bw() +
@@ -713,42 +697,42 @@ server <- function(input, output, session) {
               axis.title = element_text(size = 20),
               legend.position="bottom"
               )
-      
+
       if (k == 0.5){
         outputPlot <- basePlot
       } else {
         outputPlot <- basePlot +
-          geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k)), 
+          geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k)),
                      aes(x=xCoords,y=yCoords,color=grouping), size=5, shape=17)
-        
+
         if (k >= 1.5){
-          outputPlot <- outputPlot + 
-            geom_point(data=filter(Kiterfunction$irisData, iteration == floor(k-0.5)), 
+          outputPlot <- outputPlot +
+            geom_point(data=filter(Kiterfunction$irisData, iteration == floor(k-0.5)),
                        aes(x=Sepal.Length,y=Sepal.Width,color=grouping), alpha=0.5)
         }
-        
+
         if (k >= 2){
           outputPlot <- outputPlot +
-            geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k-1)), 
+            geom_point(data=filter(Kiterfunction$centroids, iteration == floor(k-1)),
                        aes(x=xCoords,y=yCoords,color=grouping),size=5,shape=2) +
             geom_path(data=filter(Kiterfunction$centroids,
-                                  iteration == floor(k) | iteration == floor(k-1)), 
+                                  iteration == floor(k) | iteration == floor(k-1)),
                       aes(x = xCoords, y = yCoords, color = grouping))
         }
       }
       output$Exdotplot <- renderPlot(expr = {outputPlot})
-      
-      
-      
-      ## barplot 
-      
-      totData <- 
+
+
+
+      ## barplot
+
+      totData <-
         filter(Kiterfunction$centroids, iteration <= k) %>%
         group_by(iteration) %>%
         summarise(total = sum(totWithin))
-      
-      barOutput <- 
-      ggplot(data=filter(Kiterfunction$centroids, iteration <= floor(k)), 
+
+      barOutput <-
+      ggplot(data=filter(Kiterfunction$centroids, iteration <= floor(k)),
              aes(x=iteration, y=totWithin, fill=grouping)) +
              geom_bar(position="stack", stat="identity") +
              geom_line(data=totData, aes(x=iteration, y=total), inherit.aes = FALSE) +
@@ -763,17 +747,17 @@ server <- function(input, output, session) {
                 axis.title = element_text(size = 20),
                 legend.position="bottom"
               )
-             
-      
+
+
       output$Exbarplot <- renderPlot(expr = {barOutput})
-      
+
     }
   )
-  
-  
-  
 
-  
+
+
+
+
 }
 
 
