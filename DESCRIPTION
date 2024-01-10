@@ -1,15 +1,14 @@
-Title: Clustering App 
-ShortName: Clustering App
+Title: K_means Clustering App 
+ShortName: K_means Clustering App
 Date: 2022-06-10
 Lifecycle: experimental
 Authors@R: c(
-    person(given = "Jacopo", family = "Di Iorio", email = "jqd5830@psu.edu", role = c("aut", "cre"))
+    person(given = "Hongyi", family = "Xia", email = "hkx5049@psu.edu", role = c("aut", "cre"))
   )
-Chapter:Chapter 11: Data Science
-Description: An App to introduce and demostrate the idea of clustering 
+Chapter: Data Science
+Description: An App to introduce and demostrate the idea of K_means clustering 
 LearningObjectives: c(
-    "The student will allocate centroids to minimize deviation of dataset with
-    respect to each nearest centroids."
+    "The user will work with an example page and explore page to gain a better understanding of k-means."
   )
 DisplayMode: Normal
 URL: https://psu-eberly.shinyapps.io/personal_introduction_app-hy2021-IT
