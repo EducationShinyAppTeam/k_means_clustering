@@ -1,27 +1,30 @@
 # Load packages ----
-library(fields)
 library(shiny)
 library(shinydashboard)
 library(shinyBS)
 library(shinyWidgets)
 library(boastUtils)
 library(dplyr)
-library(Stat2Data)
-library(tidyselect)
+library(tidyr)
 library(DT)
 library(ggplot2)
 
+# What are these packages for?
+library(tidyselect)
 library(devtools)
 # library(easyGgplot2)
-library(Spectrum)
-library(data.table)
+library(fields)
+# library(Stat2Data)
+library(Spectrum) # Contains the circles data
+# library(data.table)
+library(palmerpenguins)
 
 # Load data ----
-data(circles, package = "DRIP")
 circle <- as.data.frame(t(circles))
 
 data(iris) # citation for iris
-iris <- iris[,1:2]
+# iris <- iris[,1:2]
+data(penguins)
 
 ## k-means Iteration data ----
 Kiterfunction <- readRDS("Kiterfunction.rds")
@@ -72,8 +75,6 @@ ui <- list(
           tabName = "overview",
           withMathJax(),
           h1(tags$em("k-"),"means Clustering"),
-          p("This app allows students to explore the", tags$em("k"), "-means
-            Clustering algorithm."),
           p("This app allows students to explore the", tags$em("k-"), "means
             clustering algorithm. Students can work through an example of how
             the algorithm works and then explore the relationship between the
@@ -93,7 +94,7 @@ ui <- list(
             style = "text-align: center;",
             bsButton(
               inputId = "goExplore",
-              label = "GO!",
+              label = "Explore!",
               size = "large",
               icon = icon("bolt"),
               style = "default"
@@ -121,7 +122,7 @@ ui <- list(
         ),
         ### Prereqs ----
         tabItem(
-          tabName = "Prerequisites",
+          tabName = "prerequisites",
           withMathJax(),
           h2("Prerequisites"),
           p("Review information about the ", tags$em("k"), "-means clustering
@@ -263,6 +264,20 @@ ui <- list(
               )
             ),
             uiOutput(outputId = "exampleDescription"),
+            br(),
+            box(
+              width = 12,
+              title = "About the Iris Data",
+              collapsible = TRUE,
+              collapsed = TRUE,
+              "The Iris data set contains the measurements of 150 flowers from
+              across three species of iris (50 of each). Each flower has the
+              length and width (in centimeters) of their petals as well as the
+              length and width of their sepals (the small, green, leaf-like outer
+              portion of each flower. For this clustering example, we are using
+              all four of the quantities. Anderson (1935) originally collected
+              the data; Fisher (1936) used the data in a subsequent paper."
+            )
           ),
           column(
             width = 8,
@@ -278,27 +293,79 @@ ui <- list(
         tabName = "explore",
         withMathJax(),
         h2("Explore Data Collections"),
-        p("Two datasets, iris and circles, are provided. Plot centroids on the scatter plot and
-          click Run to run the K-means Algorithm. Check out the corresponding Total Within Sum of
-          Squre Value in the table and dotplot below."),
+        p("Using the data collections provided, explore how the different number
+          of and position of initial centroids impact the application of the",
+          tags$em("k-"), "means clustering approach. After setting initial centroids
+          click the Run button apply the algorithm. Be sure to look at the
+          corresponding Total Within-Cluster Sum of Squares values in the table
+          and plot below."),
         fluidRow(
           column(
-            width = 5,
+            width = 4,
             offset = 0,
             wellPanel(
               selectInput(
                 inputId = "selectData",
                 label = "Choose a data collection",
                 choices = c(
-                  "iris" = "iris",
-                  "circle" = "circle"
+                  "Circles" = "circle",
+                  "Iris" = "iris",
+                  "Palmer penguins" = "penguins"
                 ),
-                selected = "iris"
+                selected = "circle"
               ),
-              actionButton("ready","Run"),
-              actionButton("reset","Clear centroids"),
-              actionButton("clear","Clear Table")
+              bsButton(
+                inputId = "ready", # Needs a better name
+                label = "Run",
+                size = "large"
+              ),
+              bsButton(
+                inputId = "reset", # Needs a better name
+                label = "Clear centroids",
+                size = "large",
+                icon = icon("eraser"),
+                style = "warning"
+              ),
+              bsButton(
+                inputId = "clear", # Needs a better name
+                label = "Clear table",
+                size = "large",
+                icon = icon("eraser"),
+                style = "warning"
+              ),
             ),
+            box(
+              width = 12,
+              title = "About the data",
+              collapsible = TRUE,
+              collapsed = TRUE,
+              uiOutput("dataInfo")
+            )
+          ),
+          column(
+            width = 8,
+            offset = 0,
+            plotOutput(outputId = "debugPlot", click = "placeCentroid")
+          )
+        ),
+        fluidRow(
+          column(
+            width = 5,
+            offset = 0,
+            DTOutput(outputId = "twcssTable")
+          ),
+          column(
+            width = 7,
+            offset = 0,
+            plotOutput(outputId = "twcssDots")
+          )
+        ),
+        hr(),
+        p(tags$strong("OLD")),
+        fluidRow(
+          column(
+            width = 5,
+            offset = 0,
             DTOutput("TotTable") #DTOutput("TotTable")
           ),
           column(
@@ -616,20 +683,370 @@ server <- function(input, output, session) {
   )
 
   ## Explore Page ----
+  ### Define reactive values ----
+  dataCollection <- reactiveVal(value = NULL, label = "Explore data set")
+  plotAxes <- reactiveValues(
+    horiz = NULL,
+    hNice = NULL,
+    vert = NULL,
+    vNice = NULL
+  )
+  userCentroids <- reactiveVal(value = NULL, label = "User centroids")
+  clusteredData <- reactiveVal(value = NULL, label = "Data with cluster info")
+  twcssData <- reactiveVal(value = NULL, label = "TWCSS data")
 
-  ## Set the Data Collection
-  dataCollection <- eventReactive(
+
+  ### Set data collection and axes ----
+  observeEvent(
     eventExpr = input$selectData,
-    valueExpr = {
-      switch(
+    handlerExpr = {
+      dataCollection(
+        switch(
+          EXPR = input$selectData,
+          iris = iris,
+          circle = circle,
+          penguins = penguins
+        )
+      )
+
+      if (input$selectData == "iris") {
+        plotAxes$horiz <- "Sepal.Length"
+        plotAxes$hNice <- "Sepal length (cm)"
+        plotAxes$vert <- "Sepal.Width"
+        plotAxes$vNice <- "Sepal width (cm)"
+      } else if (input$selectData == "circle") {
+        plotAxes$horiz <- "x1"
+        plotAxes$hNice <- "Horizontal position"
+        plotAxes$vert <- "y1"
+        plotAxes$vNice <- "Vertical position"
+      } else if (input$selectData == "penguins") {
+        plotAxes$horiz <- "bill_length_mm"
+        plotAxes$hNice <- "Bill length (mm)"
+        plotAxes$vert <- "bill_depth_mm"
+        plotAxes$vNice <- "Bill depth (mm)"
+      }
+
+      aboutData <- switch(
         EXPR = input$selectData,
-        iris = iris,
-        circle = circle
+        iris = "The Iris data set contains the measurements of 150 flowers from
+              across three species of iris (50 of each). Each flower has the
+              length and width (in centimeters) of their petals as well as the
+              length and width of their sepals (the small, green, leaf-like outer
+              portion of each flower. For this clustering example, we are using
+              all four of the quantities. Anderson (1935) originally collected
+              the data; Fisher (1936) used the data in a subsequent paper. For
+              this part of the app, the you will be able to specify two attributes
+              of the four for each center; the other two will be randomly set.",
+        circle = "A simulated data set that contains 540 observations along two
+                  position attributes. You will be able to specify both attributes
+                  for each centroid.",
+        penguins = "The Palmer Penguins data set contains the measurements of 344
+                    adult penguins found in the Palmer Archipelago of Antartica.
+                    In addition to recording the species, sex, and year of the
+                    study the penguin was measured, several size attributes appear.
+                    These include the bill length and depth (in mm), the flipper
+                    length (in mm), and the body mass (in g). For this part of
+                    the app, we will only look at the size attributes. You'll be
+                    able to set two of the attributes values for each centroid;
+                    the other two will be set randomly."
+      )
+      output$dataInfo <- renderUI(
+        expr = {p(aboutData)}
+      )
+    }
+  )
+
+  ### Define the core scatter plot object ----
+  coreScatterplot <- eventReactive(
+    eventExpr = dataCollection(),
+    valueExpr = {
+      ggplot(
+        data = dataCollection(),
+        mapping = aes(x = .data[[plotAxes$horiz]], y = .data[[plotAxes$vert]])
+      ) +
+        geom_point(alpha = 0.5) +
+        theme_bw() +
+        scale_color_manual(values = boastUtils::psuPalette) +
+        labs(
+          x = plotAxes$hNice,
+          y = plotAxes$vNice,
+          color = "Cluster/Grouping"
+        ) +
+        theme(
+          text = element_text(size = 20),
+          legend.position = "bottom"
+        )
+    }
+  )
+
+  ### Listen for mouse clicks ----
+  observeEvent(
+    eventExpr = input$placeCentroid,
+    handlerExpr = {
+      if (is.null(userCentroids())) {
+        userCentroids(
+          data.frame(
+            horiz = input$placeCentroid$x,
+            vert = input$placeCentroid$y
+          )
+        )
+      } else if (nrow(userCentroids()) < 8) {
+        userCentroids(
+          rbind(
+            userCentroids(),
+            c(input$placeCentroid$x, input$placeCentroid$y)
+          )
+        )
+      } else {
+        sendSweetAlert(
+          session = session,
+          type = "warning",
+          title = "Maximum Number of Centroids Reached",
+          text = "For this exploration, you will not be able to set more than 8
+          centroids. Click the Clear centroids button to reset the centroids."
+        )
+      }
+      ### Debugging plot 1 ----
+      ### This needs to be called here so that if the user adds a new centroid
+      ### to the plot, the plot will revert to their initial set plus the new
+      output$debugPlot <- renderPlot(
+        expr = {
+          if (is.null(userCentroids())) {
+            coreScatterplot()
+          } else {
+            centroidsScatterplot()
+          }
+        },
+        alt = "testing"
+      )
+    }
+  )
+
+  #### Initial Centroids Plot ----
+  centroidsScatterplot <- eventReactive(
+    eventExpr = userCentroids(),
+    valueExpr = {
+      coreScatterplot() +
+        geom_point(
+          inherit.aes = FALSE,
+          data = userCentroids(),
+          mapping = aes(x = horiz, y = vert),
+          size = 5,
+          shape = 17
+        )
+    }
+  )
+
+  ### Debugging plot ----
+  ### This generates the initial plot so that the user can add centroids
+  output$debugPlot <- renderPlot(
+    expr = {
+      if (is.null(userCentroids())) {
+        coreScatterplot()
+      } else {
+        centroidsScatterplot()
+      }
+    },
+    alt = "testing"
+  )
+
+  ### Run k-means on data ----
+  observeEvent(
+    eventExpr = input$ready,
+    handlerExpr = {
+      if (is.null(userCentroids())) {
+        sendSweetAlert(
+          session = session,
+          title = "Add Centroids",
+          type = "error",
+          text = "Place at least one initial centroid first."
+        )
+      } else {
+        #### Prepare clustering data ----
+        clusteredData(
+          dataCollection() %>%
+            dplyr::select(where(is.numeric)) %>%
+            drop_na()
+        )
+
+        if (input$selectData == "penguins") {
+          clusteredData(
+            clusteredData() %>%
+              dplyr::select(!year)
+          )
+        }
+
+        #### Prepare Centers ----
+        #### Randomly select a value from additional attributes
+        #### Bad centers get found
+        if (input$selectData == "penguins" | input$selectData == "iris") {
+          tempCenter <-  sapply(
+            X = clusteredData(),
+            FUN = sample,
+            size = nrow(userCentroids())
+          )
+          tempCenter[1,] <- userCentroids()$horiz
+          tempCenter[2,] <- userCentroids()$vert
+
+          centers <- tempCenter
+
+        } else {
+          centers <- userCentroids()
+        }
+
+        #### Run clustering ----
+        clusterResults <- kmeans(
+          x = clusteredData(),
+          centers = centers
+        )
+
+        newCenters <- as.data.frame(clusterResults$centers) %>%
+          mutate(
+            grouping = LETTERS[row_number()]
+          )
+
+        #### Save information ----
+        if (is.null(twcssData())) {
+          twcssData(
+            data.frame(
+              kVal = length(unique(clusterResults$cluster)),
+              twcss = clusterResults$tot.withinss
+            )
+          )
+        } else {
+          twcssData(
+            rbind(
+              twcssData(),
+              c(length(unique(clusterResults$cluster)), clusterResults$tot.withinss)
+            )
+          )
+        }
+
+        #### Update scatter plot ----
+        output$debugPlot <- renderPlot(
+          expr = {
+            cbind(
+              clusteredData(),
+              grouping = LETTERS[clusterResults$cluster]
+            ) %>%
+              ggplot(
+                mapping = aes(
+                  x = .data[[plotAxes$horiz]],
+                  y = .data[[plotAxes$vert]],
+                  color = grouping
+                )
+              ) +
+              geom_point(alpha = 0.5) +
+              theme_bw() +
+              scale_color_manual(values = boastUtils::psuPalette) +
+              labs(
+                x = plotAxes$hNice,
+                y = plotAxes$vNice,
+                color = "Cluster/Grouping"
+              ) +
+              theme(
+                text = element_text(size = 20),
+                legend.position = "bottom"
+              ) +
+              geom_point(
+                inherit.aes = FALSE,
+                data = newCenters,
+                mapping = aes(
+                  x = .data[[plotAxes$horiz]],
+                  y = .data[[plotAxes$vert]],
+                  color = grouping
+                ),
+                size = 5,
+                shape = 17
+              )
+          },
+          alt = "Clustered Results"
+        )
+
+        #### Update table ----
+        output$twcssTable <- renderDT(
+          expr = {
+            validate(
+              need(
+                expr = !is.null(twcssData()),
+                message = "Pick centroids and click Run."
+              )
+            )
+            round(twcssData(), digits = 3) %>%
+              arrange(kVal, desc(twcss)) %>%
+              rename(`Number of Clusters` = kVal, TWCSS = twcss)
+          },
+          caption = "Total Within Sum of Squares for Different Numbers of Clusters",
+          style = "bootstrap4",
+          rownames = TRUE,
+          options = list(
+            responsive = TRUE,
+            scrollX = TRUE,
+            paging = FALSE,
+            searching = FALSE,
+            info = FALSE,
+            columnDefs = list(
+              list(className = 'dt-center', targets = 1:ncol(twcssData()))
+            )
+          )
+        )
+
+        #### Update dot plot ----
+        output$twcssDots <- renderPlot(
+          expr = {
+            validate(
+              need(
+                expr = !is.null(twcssData()),
+                message = "Pick centroids and click run"
+              )
+            )
+            ggplot(
+              data = twcssData(),
+              mapping = aes(x = kVal, y = twcss)
+            ) +
+              geom_point(
+                position = position_dodge2(width = 0.1),
+                size = 5
+              ) +
+              scale_x_continuous(
+                limits = c(1, 8),
+                expand = expansion(add = c(1, 0.5)),
+                breaks = 0:8,
+                minor_breaks = NULL
+              ) +
+              labs(
+                x = "Number of clusters/groupings",
+                y = "Total Within-Cluster Sum of Squares",
+                title = "TWCSS by Number of Clusters"
+              ) +
+              theme_bw() +
+              theme(
+                text = element_text(size = 20)
+              )
+          },
+          alt = "dot plot"
+        )
+      }
+    }
+  )
+
+  ## Clear centroids ----
+  observeEvent(
+    eventExpr = input$reset,
+    handlerExpr = {
+      userCentroids(NULL)
+
+      output$debugPlot <- renderPlot(
+        expr = {
+          coreScatterplot()
+        },
+        alt = "testing"
       )
     }
   )
 
 
+  ### OLD Listening ----
 
   click_saved <- reactiveValues(singleclick = NULL) #no click
 
@@ -653,11 +1070,15 @@ server <- function(input, output, session) {
 
     centroidsplot <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
 
-    output$plot2 <- renderPlot( expr = {
-      ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
-                                                          "Sepal.Length","x1"),
-                                                 y=ifelse(input$selectData == "iris",
-                                                          "Sepal.Width","y1")),
+
+    output$plot2 <- renderPlot(
+      expr = {
+        ggplot(
+          data = dataCollection(),
+          mapping = aes(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
+                                                                     "Sepal.Length","x1"),
+                                                            y=ifelse(input$selectData == "iris",
+                                                                     "Sepal.Width","y1"))),
              color="black") +
         geom_point(alpha = 0.5) +
         geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]),
