@@ -7,4 +7,4 @@
 ![App Screenshot](../docs/screenshot.png)
 
 # App Description
-An App to introduce and demostrate the idea of clustering.
+A learning application that demonstrates the progressively changing iterations and the ultimate points of convergence of the K-means algorithm.

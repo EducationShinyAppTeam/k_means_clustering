@@ -10,6 +10,7 @@ library(DT)
 library(ggplot2)
 library(Spectrum) # Contains the circles data
 library(palmerpenguins)
+# library(BrailleR) # For future development
 
 # Load helper function ----
 source("neighborsSearch.R")
@@ -274,7 +275,16 @@ ui <- list(
               offset = 0,
               br(),
               plotOutput(outputId = "exampleScatter", height = "500px"),
-              plotOutput(outputId = "exampleBarPlot", height = "500px")
+              plotOutput(outputId = "exampleBarPlot", height = "500px"),
+              # Furture development to display long description
+              # checkboxInput(
+              #   inputId = "longDesc1",
+              #   label = "Show long description of bar plot"
+              # ),
+              # conditionalPanel(
+              #   condition = "input.longDesc1",
+              #   uiOutput(outputId = "exampleBarLongDesc")
+              # )
             )
           )
         ),
@@ -663,21 +673,28 @@ server <- function(input, output, session) {
           text = element_text(size = 20),
           legend.position = "bottom"
         )
+
       #### Example TWCSS Bars ----
+      if (input$exampleIteration < 3) {
+        exampleBarPlot <- baseBar
+      } else {
+        exampleBarPlot <- baseBar +
+          geom_path(
+            inherit.aes = FALSE,
+            data = twcssData,
+            mapping = aes(x = iteration, y = total)
+          )
+      }
+
       output$exampleBarPlot <- renderPlot(
-        expr = {
-          if (input$exampleIteration < 3) {
-            baseBar
-          } else {
-            baseBar +
-              geom_path(
-                inherit.aes = FALSE,
-                data = twcssData,
-                mapping = aes(x = iteration, y = total)
-              )
-          }
-        },
-        alt = "Coming soon"
+        expr = {exampleBarPlot},
+        alt = "Bar plot of total within-cluster sum of squares"
+      )
+
+      # temp <- BrailleR::VI(exampleBarPlot)
+
+      output$exampleBarLongDesc <- renderUI(
+        expr = {}
       )
     }
   )
@@ -969,7 +986,7 @@ server <- function(input, output, session) {
                 shape = 17
               )
           },
-          alt = "Clustered Results"
+          alt = "Scatter plot showing the centeroids and clustering/grouping results"
         )
 
         #### Update table ----
@@ -1033,7 +1050,8 @@ server <- function(input, output, session) {
                 text = element_text(size = 20)
               )
           },
-          alt = "dot plot"
+          alt = "Dot plot of total within-cluster sum of squares by the number of
+                clusters"
         )
       }
     }

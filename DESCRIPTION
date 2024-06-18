@@ -4,9 +4,9 @@ Date: 2023-10-25
 Lifecycle: experimental
 Authors@R: c(
     person(given = "Hongyi", family = "Xia", role = c("aut", "cre")),
-    person(given = "Jacopo", family = "Di Iorio", email = "jqd5830@psu.edu", role = c("aut", "cre")),
+    person(given = "Jacopo", family = "Di Iorio", role = c("aut", "cre")),
     person(given = "Dennis", family = "Pearl", role = c("aut")),
-    person(given = "Neil", family = "Hatfield", role = c("aut"))
+    person(given = "Neil", family = "Hatfield", email="njh5464@psu.edu", role = c("aut"))
   )
 Chapter:Chapter 11: Data Science
 Description: An App to introduce and demostrate the idea of clustering 
