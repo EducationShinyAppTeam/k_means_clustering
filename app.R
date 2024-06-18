@@ -8,22 +8,15 @@ library(dplyr)
 library(tidyr)
 library(DT)
 library(ggplot2)
-
-# What are these packages for?
-library(tidyselect)
-library(devtools)
-# library(easyGgplot2)
-library(fields)
-# library(Stat2Data)
 library(Spectrum) # Contains the circles data
-# library(data.table)
 library(palmerpenguins)
+
+# Load helper function ----
+source("neighborsSearch.R")
 
 # Load data ----
 circle <- as.data.frame(t(circles))
-
-data(iris) # citation for iris
-# iris <- iris[,1:2]
+data(iris)
 data(penguins)
 
 ## k-means Iteration data ----
@@ -108,16 +101,13 @@ ui <- list(
             an app created by Dr. Jacopo Di Iorio, who oversaw the project.
             Additional updates were implimented by Dr. Hatfield.",
             br(),
-            "I would like to acknowledge Drs. Di Iorio, Hatfield, and Pearl for
-            their guidance and support.",
-            br(),
             br(),
             "Cite this app as:",
             br(),
             citeApp(),
             br(),
             br(),
-            div(class = "updated", "Last Update: 5/31/2024 by NJH.")
+            div(class = "updated", "Last Update: 6/18/2024 by NJH.")
           )
         ),
         ### Prereqs ----
@@ -166,7 +156,7 @@ ui <- list(
                         tags$em("k"), "cases from the dataset to act as initial
                         centroids."),
                 tags$li(tags$strong("Random Partition:"), "randomly assign each
-                        case to one of  the", tags$em("k"), "clusters. The initial
+                        case to one of the", tags$em("k"), "clusters. The initial
                         centroids arethen calculated for each of these clusters."),
                 tags$li(tags$strong("User Specified:"), "the user specifies",
                         tags$em("k"), "points to use as the initial centroids.")
@@ -236,149 +226,132 @@ ui <- list(
               Squares versus the number of clusters.")
           )
         ),
-      ### Example page ----
-      tabItem(
-        tabName = "example",
-        withMathJax(),
-        h2("Illustrative Example of", tags$em("k-"), "means with 3 Centroids"),
-        p("Move the slider (or press the play button) to watch what changes in
+        ### Example page ----
+        tabItem(
+          tabName = "example",
+          withMathJax(),
+          h2("Illustrative Example of", tags$em("k-"), "means with 3 Centroids"),
+          p("Move the slider (or press the play button) to watch what changes in
           the plot as the", tags$em("k-"), "means clustering algorithm gets
           applied. The slider steps through mutiple iterations of the",
-          tags$em("k-"), "means algorithm, displaying how the centroids move and
+            tags$em("k-"), "means algorithm, displaying how the centroids move and
           data points get re-grouped. The stacked barplot that accompanies the
           centroids plot shows changes in the within-cluster sums of squares as
           iterations progress."),
-        fluidRow(
-          column(
-            width = 4,
-            offset = 0,
-            wellPanel(
-              sliderInput(
-                inputId = "exampleIteration",
-                label = "Current step",
-                value = 0,
-                min = 0,
-                max = 18,
-                step = 1,
-                animate = animationOptions(interval = 2000)
-              )
-            ),
-            uiOutput(outputId = "exampleDescription"),
-            br(),
-            box(
-              width = 12,
-              title = "About the Iris Data",
-              collapsible = TRUE,
-              collapsed = TRUE,
-              "The Iris data set contains the measurements of 150 flowers from
+          fluidRow(
+            column(
+              width = 4,
+              offset = 0,
+              wellPanel(
+                sliderInput(
+                  inputId = "exampleIteration",
+                  label = "Current step",
+                  value = 0,
+                  min = 0,
+                  max = 18,
+                  step = 1,
+                  animate = animationOptions(interval = 2000)
+                )
+              ),
+              uiOutput(outputId = "exampleDescription"),
+              br(),
+              box(
+                width = 12,
+                title = "About the Iris Data",
+                collapsible = TRUE,
+                collapsed = TRUE,
+                "The Iris data set contains the measurements of 150 flowers from
               across three species of iris (50 of each). Each flower has the
               length and width (in centimeters) of their petals as well as the
               length and width of their sepals (the small, green, leaf-like outer
               portion of each flower. For this clustering example, we are using
               all four of the quantities. Anderson (1935) originally collected
               the data; Fisher (1936) used the data in a subsequent paper."
+              )
+            ),
+            column(
+              width = 8,
+              offset = 0,
+              br(),
+              plotOutput(outputId = "exampleScatter", height = "500px"),
+              plotOutput(outputId = "exampleBarPlot", height = "500px")
             )
-          ),
-          column(
-            width = 8,
-            offset = 0,
-            br(),
-            plotOutput(outputId = "exampleScatter", height = "500px"),
-            plotOutput(outputId = "exampleBarPlot", height = "500px")
           )
-        )
-      ),
-      ### Explore Page ----
-      tabItem(
-        tabName = "explore",
-        withMathJax(),
-        h2("Explore Data Collections"),
-        p("Using the data collections provided, explore how the different number
+        ),
+        ### Explore Page ----
+        tabItem(
+          tabName = "explore",
+          withMathJax(),
+          h2("Explore Data Collections"),
+          p("Using the data collections provided, explore how the different number
           of and position of initial centroids impact the application of the",
-          tags$em("k-"), "means clustering approach. After setting initial centroids
+            tags$em("k-"), "means clustering approach. After setting initial centroids
           click the Run button apply the algorithm. Be sure to look at the
           corresponding Total Within-Cluster Sum of Squares values in the table
           and plot below."),
-        fluidRow(
-          column(
-            width = 4,
-            offset = 0,
-            wellPanel(
-              selectInput(
-                inputId = "selectData",
-                label = "Choose a data collection",
-                choices = c(
-                  "Circles" = "circle",
-                  "Iris" = "iris",
-                  "Palmer penguins" = "penguins"
+          fluidRow(
+            column(
+              width = 4,
+              offset = 0,
+              wellPanel(
+                selectInput(
+                  inputId = "selectData",
+                  label = "Choose a data collection",
+                  choices = c(
+                    "Circles" = "circle",
+                    "Iris" = "iris",
+                    "Palmer penguins" = "penguins"
+                  ),
+                  selected = "circle"
                 ),
-                selected = "circle"
+                bsButton(
+                  inputId = "runAlgo",
+                  label = "Run",
+                  size = "large"
+                ),
+                bsButton(
+                  inputId = "clearCenters",
+                  label = "Clear centroids",
+                  size = "large",
+                  icon = icon("eraser"),
+                  style = "warning"
+                ),
+                bsButton(
+                  inputId = "clearTWCSS",
+                  label = "Clear table",
+                  size = "large",
+                  icon = icon("eraser"),
+                  style = "warning"
+                ),
               ),
-              bsButton(
-                inputId = "ready", # Needs a better name
-                label = "Run",
-                size = "large"
-              ),
-              bsButton(
-                inputId = "reset", # Needs a better name
-                label = "Clear centroids",
-                size = "large",
-                icon = icon("eraser"),
-                style = "warning"
-              ),
-              bsButton(
-                inputId = "clear", # Needs a better name
-                label = "Clear table",
-                size = "large",
-                icon = icon("eraser"),
-                style = "warning"
-              ),
+              box(
+                width = 12,
+                title = "About the data",
+                collapsible = TRUE,
+                collapsed = TRUE,
+                uiOutput(outputId = "dataInfo")
+              )
             ),
-            box(
-              width = 12,
-              title = "About the data",
-              collapsible = TRUE,
-              collapsed = TRUE,
-              uiOutput("dataInfo")
+            column(
+              width = 8,
+              offset = 0,
+              plotOutput(outputId = "clusterPlot", click = "placeCentroid"),
+              uiOutput(outputId = "plotNote")
             )
           ),
-          column(
-            width = 8,
-            offset = 0,
-            plotOutput(outputId = "debugPlot", click = "placeCentroid")
+          fluidRow(
+            column(
+              width = 5,
+              offset = 0,
+              DTOutput(outputId = "twcssTable")
+            ),
+            column(
+              width = 7,
+              offset = 0,
+              plotOutput(outputId = "twcssDots")
+            )
           )
         ),
-        fluidRow(
-          column(
-            width = 5,
-            offset = 0,
-            DTOutput(outputId = "twcssTable")
-          ),
-          column(
-            width = 7,
-            offset = 0,
-            plotOutput(outputId = "twcssDots")
-          )
-        ),
-        hr(),
-        p(tags$strong("OLD")),
-        fluidRow(
-          column(
-            width = 5,
-            offset = 0,
-            DTOutput("TotTable") #DTOutput("TotTable")
-          ),
-          column(
-            width = 7,
-            offset = 0,
-            br(),
-            plotOutput(outputId = "plot2",click = "plot_click"),
-            #tableOutput("check"),
-            plotOutput(outputId = "plotscatter")
-          )
-        )
-      ),
-
         ### References Page ----
         tabItem(
           tabName = "references",
@@ -388,14 +361,26 @@ ui <- list(
             references for your app."),
           p(
             class = "hangingindent",
+            "Anderson, E. (1935). The irises of the Gaspe Peninsula. Bulletin of
+            the American Iris Society, 59, 2-5. [Data]."
+          ),
+          p(
+            class = "hangingindent",
             "Bailey, E. (2022). shinyBS: Twitter bootstrap components for shiny.
             (v 0.61.1). [R package]. Available from
             https://CRAN.R-project.org/package=shinyBS"
           ),
           p(
             class = "hangingindent",
-            "Carey, R. and Hatfield, N. J. (2022). boastUtils: BOAST utlities.
-            (v 0.1.12.3). [R package]. Available from
+            "Beygelzimer, A., Kakadet, S., Langford, J., Arya, S., Mount, D., and
+            Li, S. (2024). FNN: Fast nearest neighbor search algorithms and
+            applications. (v 1.1.4). [R package]. Available from
+            https://CRAN.R-project.org/package=FNN"
+          ),
+          p(
+            class = "hangingindent",
+            "Carey, R. and Hatfield, N. J. (2024). boastUtils: BOAST utlities.
+            (v 0.1.12.2). [R package]. Available from
             https://github.com/EducationShinyAppTeam/boastUtils"
           ),
           p(
@@ -407,37 +392,53 @@ ui <- list(
           p(
             class = "hangingindent",
             "Chang, W., Cheng J., Allaire, J., Sievert, C., Schloerke, B., Xie, Y.,
-            Allen, J., McPherson, J., Dipert, A., and Borges, B. (2021). shiny:
-            Web application framework for R. (v 1.7.1). [R package]. Available
+            Allen, J., McPherson, J., Dipert, A., and Borges, B. (2024). shiny:
+            Web application framework for R. (v 1.8.1.1). [R package]. Available
             from https://CRAN.R-project.org/package=shiny"
           ),
           p(
             class = "hangingindent",
-            "Hadley, W., RStudio (2021). tidyverse: Easily Install and Load the
-            'Tidyverse'. (v 1.3.1) [R package]. Available from
-             https://CRAN.R-project.org/package=tidyverse"
+            "Horst, A. M., Hill, A. P., and Gorman, K. B. (2022). palmerpenguins:
+            Palmer Archipelago (Antartica) penguin data. (v 0.1.1). [R package,
+            data]. Available from https://allisonhorst.github.io/palmerpenguins
+            DOI: doi: 10.5281/zenodo.3960218"
           ),
           p(
             class = "hangingindent",
-            "Henry, L., Wickham, H., RStudio (2022). tidyselect: Select from a
-            Set of Strings. (v 1.1.2) [R package]. Available from
-             https://cran.r-project.org/web/packages/tidyselect/index.html"
+            "John, C. R., and Watson, D. (2020). Spectrum: Fast adapative spectral
+            clustering for single and multi-view data. (v 1.1) [R package, data].
+            Available from https://CRAN.R-project.org/package=Spectrum"
           ),
           p(
             class = "hangingindent",
-            "Nychka, D., Furrer, R., Paige, J., Sain, S., Gerber, F., Iverson, M.,
-            and University Corporation for Atmospheric Research (2021).
-            fields: Tools for Spatial Data. (v 13.0.0). [R package]. Available from
-            https://CRAN.R-project.org/package=fields"
-          ),
-          p(
-            class = "hangingindent",
-           "Perrier, V., Meyer, F., and Granjon, D. (2022). shinyWidgets: Custom
-            inputs widgets for shiny. (v 0.7.0). [R package]. Available from
+            "Perrier, V., Meyer, F., and Granjon, D. (2024). shinyWidgets: Custom
+            inputs widgets for shiny. (v 0.8.6). [R package]. Available from
             https://CRAN.R-project.org/package=shinyWidgets"
           ),
-
-
+          p(
+            class = "hangingindent",
+            "Wickham, H. (2016). ggplot2: Elegant graphics for data analysis.
+            Springer-Verlag:New York. (v 3.5.1) [R package]. Available from
+            https://ggplot2.tidyverse.org"
+          ),
+          p(
+            class = "hangingindent",
+            "Wickham, H., François, R., Henry, L., Müller, K., and Vaughan, D.
+            (2023). dplyr: A grammar of data manipulation. (v 1.1.4). [R package].
+            Availble from https://CRAN.R-project.org/package=dplyr"
+          ),
+          p(
+            class = "hangingindent",
+            "Wickham, H., Vaughan, D., and Girlich, M. (2024). tidyr: Tidy messy
+            data. (v 1.3.1) [R package]. Available from
+            https://CRAN.R-project.org/package=tidyr"
+          ),
+          p(
+            class = "hangingindent",
+            "Xie, Y., Cheng, J., and Tan, X. (2024). DT: A wrapper of the
+            JavaScript library 'DataTables'. (v 0.33). [R package]. Available
+            from https://CRAN.R-project.org/package=DT"
+          ),
           br(),
           br(),
           br(),
@@ -486,7 +487,6 @@ server <- function(input, output, session) {
   )
 
   ## Example Page ----
-
   ### Display Example Iteration Info ----
   observeEvent(
     eventExpr = input$exampleIteration,
@@ -524,7 +524,7 @@ server <- function(input, output, session) {
       baseScatter <- ggplot(
         data = filter(.data = Kiterfunction$irisData, iteration == 1),
         mapping = aes(x = Sepal.Length, y = Sepal.Width)
-        ) +
+      ) +
         geom_point( #Show/hide unclustered points
           alpha = ifelse(test = input$exampleIteration >= 2, yes = 0, no = 1)
         ) +
@@ -735,8 +735,8 @@ server <- function(input, output, session) {
               portion of each flower. For this clustering example, we are using
               all four of the quantities. Anderson (1935) originally collected
               the data; Fisher (1936) used the data in a subsequent paper. For
-              this part of the app, the you will be able to specify two attributes
-              of the four for each center; the other two will be randomly set.",
+              this part of the app the nearest cases for the points you select
+              will get used as centers.",
         circle = "A simulated data set that contains 540 observations along two
                   position attributes. You will be able to specify both attributes
                   for each centroid.",
@@ -746,12 +746,26 @@ server <- function(input, output, session) {
                     study the penguin was measured, several size attributes appear.
                     These include the bill length and depth (in mm), the flipper
                     length (in mm), and the body mass (in g). For this part of
-                    the app, we will only look at the size attributes. You'll be
-                    able to set two of the attributes values for each centroid;
-                    the other two will be set randomly."
+                    the app, we will only look at the size attributes. For this
+                    part of the app the nearest cases for the points you select
+                    will get used as centers."
       )
       output$dataInfo <- renderUI(
         expr = {p(aboutData)}
+      )
+
+      ### Plot note ----
+      graphNote <- switch(
+        EXPR = input$selectData,
+        iris = "Keep in mind that the plot is only displaying two of the four
+                attributes that are getting used for the clustering algorithm.",
+        circle = NULL,
+        penguins = "Keep in mind that the plot is only displaying two of the four
+                    attributes that are getting used for the clustering algorithm."
+      )
+
+      output$plotNote <- renderUI(
+        expr = {p(graphNote)}
       )
     }
   )
@@ -809,7 +823,7 @@ server <- function(input, output, session) {
       ### Debugging plot 1 ----
       ### This needs to be called here so that if the user adds a new centroid
       ### to the plot, the plot will revert to their initial set plus the new
-      output$debugPlot <- renderPlot(
+      output$clusterPlot <- renderPlot(
         expr = {
           if (is.null(userCentroids())) {
             coreScatterplot()
@@ -839,7 +853,7 @@ server <- function(input, output, session) {
 
   ### Debugging plot ----
   ### This generates the initial plot so that the user can add centroids
-  output$debugPlot <- renderPlot(
+  output$clusterPlot <- renderPlot(
     expr = {
       if (is.null(userCentroids())) {
         coreScatterplot()
@@ -852,7 +866,7 @@ server <- function(input, output, session) {
 
   ### Run k-means on data ----
   observeEvent(
-    eventExpr = input$ready,
+    eventExpr = input$runAlgo,
     handlerExpr = {
       if (is.null(userCentroids())) {
         sendSweetAlert(
@@ -880,15 +894,10 @@ server <- function(input, output, session) {
         #### Randomly select a value from additional attributes
         #### Bad centers get found
         if (input$selectData == "penguins" | input$selectData == "iris") {
-          tempCenter <-  sapply(
-            X = clusteredData(),
-            FUN = sample,
-            size = nrow(userCentroids())
+          centers <- findNeighbors(
+            data = clusteredData(),
+            points = userCentroids()
           )
-          tempCenter[1,] <- userCentroids()$horiz
-          tempCenter[2,] <- userCentroids()$vert
-
-          centers <- tempCenter
 
         } else {
           centers <- userCentroids()
@@ -923,7 +932,7 @@ server <- function(input, output, session) {
         }
 
         #### Update scatter plot ----
-        output$debugPlot <- renderPlot(
+        output$clusterPlot <- renderPlot(
           expr = {
             cbind(
               clusteredData(),
@@ -1032,11 +1041,11 @@ server <- function(input, output, session) {
 
   ## Clear centroids ----
   observeEvent(
-    eventExpr = input$reset,
+    eventExpr = c(input$clearCenters, input$selectData),
     handlerExpr = {
       userCentroids(NULL)
 
-      output$debugPlot <- renderPlot(
+      output$clusterPlot <- renderPlot(
         expr = {
           coreScatterplot()
         },
@@ -1045,315 +1054,13 @@ server <- function(input, output, session) {
     }
   )
 
-
-  ### OLD Listening ----
-
-  click_saved <- reactiveValues(singleclick = NULL) #no click
-
-  observeEvent(eventExpr = input$plot_click,
-               handlerExpr = {
-                        click_saved$singleclick <- rbind(click_saved$singleclick,
-                                                  c(input$plot_click[1], input$plot_click[2]))
-
-    click_saved$singleclick <- as.data.frame(click_saved$singleclick)
-
-    # if there are more than 8 centroids
-    if(nrow(click_saved$singleclick)>8){
-      sendSweetAlert(
-        session = session,
-        type = "error",
-        title = "More than 8 centroids chosen",
-        text = "Limit the number of centroids in the plot to at most 8"
-      )
-      click_saved$singleclick <- click_saved$singleclick[1:8,]
+  ## Clear TWCSS Table and plot ----
+  observeEvent(
+    eventExpr = c(input$clearTWCSS, input$selectData),
+    handlerExpr = {
+      twcssData(NULL)
     }
-
-    centroidsplot <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
-
-
-    output$plot2 <- renderPlot(
-      expr = {
-        ggplot(
-          data = dataCollection(),
-          mapping = aes(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
-                                                                     "Sepal.Length","x1"),
-                                                            y=ifelse(input$selectData == "iris",
-                                                                     "Sepal.Width","y1"))),
-             color="black") +
-        geom_point(alpha = 0.5) +
-        geom_point(data = centroidsplot, aes(x = centroidsplot[,1], y = centroidsplot[,2]),
-                   size=5, shape=17, inherit.aes = FALSE) +
-        theme_bw() +
-        scale_color_manual(values = boastUtils::psuPalette) +
-        guides(color =  guide_legend(title = "Cluster Grouping")) +
-        xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
-        ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
-        theme(legend.title = element_text(size = 20),
-              legend.text = element_text(size = 20),
-              axis.title = element_text(size = 20),
-              legend.position="bottom"
-              )
-
-
-    })
-
-    output$check <- renderTable({
-      as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
-    })
-
-  })
-
-
-  #initialize scatter dataframe
-  initScatter <- reactiveValues(init = data.frame(NumClut = c(),
-                                        TotWith = c()))
-
-
-
-
-  # if you click ready
-  observeEvent(eventExpr = input$ready, handlerExpr = {
-
-    # accounted for error when more than 8 centroids
-      if(length(click_saved$singleclick)>0){
-
-      centroids <- as.data.frame(matrix(unlist(click_saved$singleclick), ncol=2, byrow=F))
-
-      if (input$selectData == "iris"){
-        currentData <- iris[,1:2]
-      } else {
-        currentData <- circle[,1:2]
-      }
-
-      ## identify a possible error
-      tryCatch({kdata <- kmeans(currentData, centers = centroids)},
-               error = function(e){
-                 sendSweetAlert(
-                   session = session,
-                   type = "error",
-                   title = "Choose a proper set of centroid",
-                   text = "your current choice of centroid led to 0 assignment of data to some centroids"
-                 )
-
-                 click_saved$singleclick <- c(NULL, NULL)
-
-                 output$check <- renderTable({
-                   as.data.frame(c(NULL, NULL))
-                 })
-
-                 output$plot2 <- renderPlot(
-                   expr = {
-                     ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
-                                                                         "Sepal.Length","x1"),
-                                                                y=ifelse(input$selectData == "iris",
-                                                                         "Sepal.Width","y1")),
-                            color="black") +
-                       geom_point(alpha = 0.5) +
-                       theme_bw() +
-                       scale_color_manual(values = boastUtils::psuPalette) +
-                       guides(color =  guide_legend(title = "Cluster Grouping")) +
-                       xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
-                       ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
-                       theme(legend.title = element_text(size = 20),
-                             legend.text = element_text(size = 20),
-                             axis.title = element_text(size = 20),
-                             legend.position="bottom"
-                       )
-                   })
-
-               }
-                 )
-
-      ## if no error then proceed
-      if(length(click_saved$singleclick)>0){
-
-        kdataset <- data.frame(kdata$centers, grouping = as.character(1:nrow(centroids)))
-        currentData$grouping <- as.character(kdata$cluster)
-
-        output$plot2 <- renderPlot(
-          expr = {
-            ggplot(data = currentData, aes_string(x=ifelse(input$selectData == "iris",
-                                                                "Sepal.Length","x1"),
-                                                  y=ifelse(input$selectData == "iris",
-                                                                "Sepal.Width","y1"),
-                   color = "grouping")) +
-              geom_point(alpha = 0.6) +
-              geom_point(data = kdataset, aes_string(x=ifelse(input$selectData == "iris",
-                                                              "Sepal.Length","x1"),
-                                                     y=ifelse(input$selectData == "iris",
-                                                              "Sepal.Width","y1"),
-                                                     color = "grouping"),
-                       size=5, shape=17, inherit.aes = FALSE) +
-              theme_bw() +
-              scale_color_manual(values = boastUtils::psuPalette) +
-              guides(color =  guide_legend(title = "Cluster Grouping")) +
-              xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
-              ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
-              theme(legend.title = element_text(size = 20),
-                    legend.text = element_text(size = 20),
-                    axis.title = element_text(size = 20),
-                    legend.position="bottom"
-              )
-          })
-
-        # create scatter plot
-        newobs <- data.frame(NumClut = as.character(length(kdata$withinss)),
-                             TotWith = round(kdata$tot.withinss, digits = 3))
-
-        initScatter$init <- rbind(initScatter$init, newobs)
-
-        output$plotscatter <- renderPlot(
-          expr = {
-            ggplot(data=initScatter$init, aes(x=NumClut, y=TotWith)) +
-              geom_dotplot(binaxis='y', stackdir='center', binwidth = 60, dotsize = 0.1) +
-              theme_bw() +
-              xlab("Number of Cluster") +
-              ylab("Total Within Sum of Square") +
-              theme(legend.title = element_text(size = 20),
-                    legend.text = element_text(size = 20),
-                    axis.title = element_text(size = 20),
-                    legend.position="bottom"
-              )
-
-          })
-
-        ClusterTable <- arrange(initScatter$init, NumClut)
-        names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
-
-        output$TotTable <- DT::renderDT(
-          expr = ClusterTable,
-          caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
-          style = "bootstrap4", # You must use this style
-          rownames = TRUE,
-          options = list( # You must use these options
-            responsive = TRUE, # allows the data table to be mobile friendly
-            scrollX = TRUE, # allows the user to scroll through a wide table
-            paging = FALSE,
-            searching = FALSE,
-            info = FALSE,
-            columnDefs = list(  # These will set alignment of data values
-              # Notice the use of ncol on your data frame; leave the 1 as is.
-              list(className = 'dt-center', targets = 1:ncol(ClusterTable))
-            )
-          )
-        )
-
-        }
-    } else {
-      sendSweetAlert(
-        session = session,
-        type = "info",
-        title = "No centroid found",
-        text = "Specify centroid on the diagram"
-      )
-    }
-  })
-
-  # clear table button
-
-  observeEvent(eventExpr = c(input$clear, input$selectData), handlerExpr = {
-
-    initScatter$init <- data.frame(NumClut = c(),    # clear table
-                                   TotWith = c())
-    ClusterTable <- initScatter$init
-    #names(ClusterTable) <- c("Number of Clusters", "Total Within Sum of Squares")
-
-    output$TotTable <- DT::renderDT(
-      expr = ClusterTable,
-      caption = "Total Within Sum of Squares for different Number of Clusters", # Add a caption to your table
-      style = "bootstrap4", # You must use this style
-      rownames = TRUE, # format round
-      options = list( # You must use these options
-        responsive = TRUE, # allows the data table to be mobile friendly
-        scrollX = TRUE, # allows the user to scroll through a wide table
-        paging = FALSE,
-        searching = FALSE,
-        info = FALSE,
-        columnDefs = list(  # These will set alignment of data values
-          # Notice the use of ncol on your data frame; leave the 1 as is.
-          list(className = 'dt-center', targets = 1:ncol(ClusterTable))
-        )
-      )
-    )
-
-    output$plotscatter <- renderPlot(               # respond to scatter plot in ui
-      expr = {
-        ggplot(data = NULL) +
-          geom_point() +
-          geom_jitter() +
-          theme_bw() +
-          scale_color_manual(values = boastUtils::psuPalette) +
-          ylab("Total Within Sum of Squares") +
-          xlab("Number of Cluster") +
-          theme(legend.title = element_text(size = 20),
-                legend.text = element_text(size = 20),
-                axis.title = element_text(size = 20),
-                legend.position="bottom"
-          )
-      })
-
-
-  }
-
-               )
-
-  # if you click RESET
-  observeEvent(eventExpr = c(input$reset, input$selectData), handlerExpr = {
-
-    # back no click
-    #click_saved$singleclick <- centroidata[6:10,]  #list() #niente cliccato
-    click_saved$singleclick <- c(NULL, NULL)
-
-    output$check <- renderTable({
-      as.data.frame(c(NULL, NULL))
-    })
-
-    output$plot2 <- renderPlot(
-      expr = {
-        ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
-                                                            "Sepal.Length","x1"),
-                                                   y=ifelse(input$selectData == "iris",
-                                                            "Sepal.Width","y1")),
-               color="black") +
-          geom_point(alpha = 0.5) +
-          theme_bw() +
-          scale_color_manual(values = boastUtils::psuPalette) +
-          guides(color =  guide_legend(title = "Cluster Grouping")) +
-          xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
-          ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
-          theme(legend.title = element_text(size = 20),
-                legend.text = element_text(size = 20),
-                axis.title = element_text(size = 20),
-                legend.position="bottom"
-          )
-      })
-
-
-  })
-
-
-
-
-
-
-  output$plot2 <- renderPlot(
-    expr = {
-      ggplot(data = dataCollection(), aes_string(x=ifelse(input$selectData == "iris",
-                                                          "Sepal.Length","x1"),
-                                                 y=ifelse(input$selectData == "iris",
-                                                          "Sepal.Width","y1")),
-             color="black") +
-        geom_point(alpha = 0.5) +
-        theme_bw() +
-        scale_color_manual(values = boastUtils::psuPalette) +
-        xlab(ifelse(input$selectData == "iris", "Sepal Length (cm)", "X")) +
-        ylab(ifelse(input$selectData == "iris", "Sepal Width (cm)", "y")) +
-        theme(legend.title = element_text(size = 20),
-              legend.text = element_text(size = 20),
-              axis.title = element_text(size = 20),
-              legend.position="bottom"
-        )
-    })
+  )
 
 }
 
