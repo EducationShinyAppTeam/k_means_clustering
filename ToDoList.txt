@@ -1,0 +1,6 @@
+# Things Needed for This Version
+1.
+2.
+
+# Ideas for Future Development
+1. Expand out the usage of the BrailleR package to provide long descriptions for plots
